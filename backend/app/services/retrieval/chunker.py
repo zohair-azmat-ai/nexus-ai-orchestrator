@@ -1,40 +1,75 @@
 """
 Text Chunker — splits documents into overlapping chunks for embedding.
 
-Phase 1: simple fixed-size character chunker.
-Phase 2: semantic chunking, recursive text splitter, or token-aware splitting.
+Returns typed ChunkItem objects with deterministic IDs derived from
+document_id + chunk_index so re-ingestion is idempotent.
 """
 
+import uuid
+from dataclasses import dataclass
+
+from app.core.config import settings
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-DEFAULT_CHUNK_SIZE = 512
-DEFAULT_OVERLAP = 64
+
+@dataclass
+class ChunkItem:
+    chunk_id: str    # deterministic UUID5 from (document_id, chunk_index)
+    chunk_index: int
+    text: str
+
+
+def _chunk_id(document_id: str, chunk_index: int) -> str:
+    """Generate a deterministic UUID5 from document_id + chunk_index."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{document_id}:{chunk_index}"))
 
 
 class TextChunker:
-    def __init__(self, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_OVERLAP):
-        self.chunk_size = chunk_size
-        self.overlap = overlap
+    @property
+    def chunk_size(self) -> int:
+        return settings.rag_chunk_size
 
-    async def chunk(self, text: str) -> list[str]:
-        """Split text into overlapping chunks."""
+    @property
+    def overlap(self) -> int:
+        return settings.rag_chunk_overlap
+
+    def chunk(self, text: str, document_id: str) -> list[ChunkItem]:
+        """
+        Split text into overlapping chunks with deterministic IDs.
+
+        Args:
+            text: The raw text to split.
+            document_id: Used to generate deterministic chunk IDs.
+
+        Returns:
+            Ordered list of ChunkItem objects.
+        """
         if not text.strip():
             return []
 
-        chunks: list[str] = []
+        items: list[ChunkItem] = []
         start = 0
+        chunk_index = 0
 
         while start < len(text):
             end = start + self.chunk_size
-            chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
+            fragment = text[start:end].strip()
+            if fragment:
+                items.append(ChunkItem(
+                    chunk_id=_chunk_id(document_id, chunk_index),
+                    chunk_index=chunk_index,
+                    text=fragment,
+                ))
+                chunk_index += 1
             start += self.chunk_size - self.overlap
 
-        logger.debug("chunker.done", extra={"input_len": len(text), "chunks": len(chunks)})
-        return chunks
+        logger.debug(
+            "chunker.done",
+            extra={"document_id": document_id, "input_len": len(text), "chunks": len(items)},
+        )
+        return items
 
 
 chunker = TextChunker()

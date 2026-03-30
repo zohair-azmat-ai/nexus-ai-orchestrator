@@ -110,6 +110,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         selected_agent=pipeline_response.selected_agent,
         memory_used=pipeline_response.memory_used,
         retrieval_used=pipeline_response.retrieval_used,
+        retrieval_result_count=pipeline_response.retrieval_result_count,
         conversation_id=conversation.id,
         messages_count=messages_count,
         event_summary=pipeline_response.event_summary,

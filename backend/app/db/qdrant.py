@@ -1,5 +1,6 @@
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -18,6 +19,32 @@ def get_qdrant_client() -> AsyncQdrantClient:
             kwargs["api_key"] = settings.qdrant_api_key
         _client = AsyncQdrantClient(**kwargs)
     return _client
+
+
+async def ensure_collection(
+    collection_name: str,
+    vector_size: int = 1536,
+    distance: Distance = Distance.COSINE,
+) -> None:
+    """
+    Create the Qdrant collection if it does not already exist.
+
+    Safe to call on every ingest — it is a no-op when the collection exists.
+    """
+    client = get_qdrant_client()
+    try:
+        await client.get_collection(collection_name)
+        logger.debug("qdrant.collection_exists", extra={"collection": collection_name})
+    except Exception:
+        # Collection does not exist — create it
+        await client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(size=vector_size, distance=distance),
+        )
+        logger.info(
+            "qdrant.collection_created",
+            extra={"collection": collection_name, "vector_size": vector_size, "distance": distance.value},
+        )
 
 
 async def check_qdrant_connection() -> bool:

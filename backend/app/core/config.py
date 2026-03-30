@@ -22,11 +22,18 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = Field(default="http://localhost:6333")
     qdrant_api_key: str = Field(default="")
+    qdrant_collection_name: str = Field(default="nexus_documents")
 
     # OpenAI
     openai_api_key: str = Field(default="")
     openai_model: str = Field(default="gpt-4o")
     openai_embedding_model: str = Field(default="text-embedding-3-small")
+
+    # RAG
+    rag_chunk_size: int = Field(default=512)
+    rag_chunk_overlap: int = Field(default=64)
+    rag_top_k: int = Field(default=5)
+    rag_min_score: float = Field(default=0.4)
 
     # Logging
     log_level: str = Field(default="INFO")

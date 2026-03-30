@@ -24,8 +24,6 @@ async def intake_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Load conversation history and user context from the memory layer."""
-    # Phase 1: stub — returns empty context
-    # Phase 2: call MemoryManager.load(user_id, session_id)
     request = ctx["request"]
     ctx["memory"] = {
         "history": request.history,
@@ -38,19 +36,41 @@ async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 
 async def retrieval_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Perform semantic retrieval from the vector store."""
-    # Phase 1: stub — no real retrieval
-    # Phase 2: call RetrievalService.search(query, top_k=5)
-    ctx["retrieval_results"] = []
-    ctx["retrieval_used"] = False
-    ctx["events"].append({"stage": "retrieval", "results": 0})
+    """
+    Perform semantic retrieval from the vector store.
+
+    On success, populates ctx["retrieval_results"] and ctx["retrieval_context"].
+    On any failure (Qdrant down, missing API key), degrades gracefully to empty.
+    """
+    from app.services.retrieval.search import semantic_search
+
+    message = ctx["request"].message
+
+    try:
+        results = await semantic_search.search(message)
+    except Exception as exc:
+        logger.warning(
+            "retrieval_stage.failed",
+            extra={"error": str(exc), "correlation_id": ctx.get("correlation_id", "")},
+        )
+        results = []
+
+    ctx["retrieval_results"] = results
+    ctx["retrieval_used"] = len(results) > 0
+    ctx["retrieval_context"] = (
+        semantic_search.format_context(results) if results else ""
+    )
+
+    ctx["events"].append({
+        "stage": "retrieval",
+        "results": len(results),
+        "retrieval_used": ctx["retrieval_used"],
+    })
     return ctx
 
 
 async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Select the most appropriate agent for this request."""
-    # Phase 1: simple keyword-based triage
-    # Phase 3: LLM-based routing with intent classification
     message = ctx["request"].message.lower()
 
     if any(kw in message for kw in ["escalate", "urgent", "critical", "human"]):
@@ -70,16 +90,24 @@ async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Generate the final answer using the selected agent."""
-    # Phase 1: stub response — no real LLM call
-    # Phase 3: delegate to agent.run(ctx)
+    # Phase 3: delegate to real agent.run(ctx) with LLM call.
     agent = ctx["selected_agent"]
     message = ctx["request"].message
+    retrieval_context = ctx.get("retrieval_context", "")
 
-    ctx["answer"] = (
-        f"[{agent.upper()} AGENT] Nexus AI received your message: \"{message}\". "
-        "LLM integration is enabled in Phase 3. "
-        "This is a Phase 1 scaffold response."
-    )
+    if retrieval_context:
+        ctx["answer"] = (
+            f"[{agent.upper()} AGENT] I found relevant context for your query.\n\n"
+            f"{retrieval_context}\n\n"
+            f"Phase 3 will generate a refined LLM response using this context."
+        )
+    else:
+        ctx["answer"] = (
+            f"[{agent.upper()} AGENT] Nexus AI received your message: \"{message}\". "
+            "LLM integration is enabled in Phase 3. "
+            "This is a Phase 2 scaffold response."
+        )
+
     ctx["events"].append({"stage": "response", "agent": agent, "answer_length": len(ctx["answer"])})
     return ctx
 
@@ -94,8 +122,6 @@ async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Persist a structured event record for this request."""
-    # Phase 1: log to structured logger
-    # Phase 4: persist to event store table
     logger.info(
         "event.log",
         extra={
@@ -104,6 +130,7 @@ async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "agent": ctx["selected_agent"],
             "memory_used": ctx["memory_used"],
             "retrieval_used": ctx["retrieval_used"],
+            "retrieval_results": len(ctx.get("retrieval_results", [])),
             "escalated": ctx["escalated"],
             "event_count": len(ctx["events"]),
         },

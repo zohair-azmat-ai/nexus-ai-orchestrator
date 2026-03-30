@@ -47,6 +47,7 @@ async def run_pipeline(request: ChatRequest) -> PipelineResult:
         "request": request,
         "memory": {},
         "retrieval_results": [],
+        "retrieval_context": "",
         "selected_agent": "support",
         "answer": "",
         "memory_used": False,
@@ -89,9 +90,12 @@ async def run_pipeline(request: ChatRequest) -> PipelineResult:
         selected_agent=ctx["selected_agent"],
         memory_used=ctx["memory_used"],
         retrieval_used=ctx["retrieval_used"],
+        retrieval_context=ctx.get("retrieval_context", ""),
+        retrieval_result_count=len(ctx.get("retrieval_results", [])),
         event_summary={
             "stage_events": ctx["events"],
             "escalated": ctx["escalated"],
             "duration_ms": round(duration_ms, 2),
+            "retrieval_results": len(ctx.get("retrieval_results", [])),
         },
     )
