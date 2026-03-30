@@ -13,6 +13,9 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8192)
     history: list[ChatMessage] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # Optional: supply an existing conversation ID to continue a session.
+    # If omitted or not found, a new conversation is created.
+    conversation_id: str | None = Field(default=None, description="Existing conversation ID to continue")
 
 
 class ChatResponse(BaseModel):
@@ -21,4 +24,6 @@ class ChatResponse(BaseModel):
     selected_agent: str
     memory_used: bool
     retrieval_used: bool
+    conversation_id: str
+    messages_count: int
     event_summary: dict[str, Any] = Field(default_factory=dict)

@@ -7,6 +7,7 @@ from app.api.v1 import health, chat, ingest, memory, observability
 from app.core.config import settings
 from app.core.ids import generate_id, set_correlation_id
 from app.core.logger import get_logger, set_log_context, clear_log_context
+from app.db.postgres import create_all_tables
 from app.services.events import logger as event_logger
 from app.services.events.types import EVENT_STARTUP, EVENT_SHUTDOWN
 
@@ -22,6 +23,10 @@ async def lifespan(app: FastAPI):
         extra={"service": settings.app_name, "version": settings.app_version, "env": settings.app_env},
     )
     event_logger.emit(EVENT_STARTUP, service=settings.app_name, version=settings.app_version)
+    try:
+        await create_all_tables()
+    except Exception as exc:
+        logger.warning("db.create_tables_failed", extra={"error": str(exc)})
     yield
     logger.info("nexus.shutdown", extra={"service": settings.app_name})
     event_logger.emit(EVENT_SHUTDOWN, service=settings.app_name)

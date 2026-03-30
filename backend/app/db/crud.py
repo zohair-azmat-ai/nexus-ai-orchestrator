@@ -1,0 +1,121 @@
+"""
+CRUD helpers — all database read/write operations for conversations, messages, and events.
+
+These functions accept an AsyncSession and are fully composable. The session is always
+managed by the caller (route handler or service), never here.
+"""
+
+import uuid
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.conversation import Conversation, Message
+from app.db.models.event import EventLog
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+# ─── Conversations ────────────────────────────────────────────────────────────
+
+async def create_conversation(db: AsyncSession, user_id: str) -> Conversation:
+    """Create and persist a new conversation for a user."""
+    conversation = Conversation(id=str(uuid.uuid4()), user_id=user_id)
+    db.add(conversation)
+    await db.flush()  # populate id without committing
+    logger.debug("crud.conversation.created", extra={"conversation_id": conversation.id, "user_id": user_id})
+    return conversation
+
+
+async def get_conversation(db: AsyncSession, conversation_id: str) -> Conversation | None:
+    """Fetch a conversation by ID. Returns None if not found."""
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    return result.scalar_one_or_none()
+
+
+async def get_or_create_conversation(
+    db: AsyncSession, user_id: str, conversation_id: str | None
+) -> Conversation:
+    """
+    Return an existing conversation if conversation_id is provided and found,
+    otherwise create a new one.
+    """
+    if conversation_id:
+        existing = await get_conversation(db, conversation_id)
+        if existing:
+            return existing
+        logger.warning(
+            "crud.conversation.not_found",
+            extra={"conversation_id": conversation_id, "user_id": user_id},
+        )
+    return await create_conversation(db, user_id)
+
+
+# ─── Messages ─────────────────────────────────────────────────────────────────
+
+async def create_message(
+    db: AsyncSession,
+    conversation_id: str,
+    role: str,
+    content: str,
+    metadata: dict[str, Any] | None = None,
+) -> Message:
+    """Append a message to a conversation."""
+    message = Message(
+        id=str(uuid.uuid4()),
+        conversation_id=conversation_id,
+        role=role,
+        content=content,
+        meta=metadata or {},
+    )
+    db.add(message)
+    await db.flush()
+    logger.debug(
+        "crud.message.created",
+        extra={"message_id": message.id, "conversation_id": conversation_id, "role": role},
+    )
+    return message
+
+
+async def list_messages(db: AsyncSession, conversation_id: str) -> list[Message]:
+    """Return all messages for a conversation, ordered by creation time."""
+    result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def count_messages(db: AsyncSession, conversation_id: str) -> int:
+    """Return the message count for a conversation."""
+    result = await db.execute(
+        select(func.count()).where(Message.conversation_id == conversation_id)
+    )
+    return result.scalar_one()
+
+
+# ─── Events ───────────────────────────────────────────────────────────────────
+
+async def create_event(
+    db: AsyncSession,
+    correlation_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+) -> EventLog:
+    """Persist a platform event to the event_logs table."""
+    event = EventLog(
+        id=str(uuid.uuid4()),
+        correlation_id=correlation_id,
+        event_type=event_type,
+        payload=payload,
+    )
+    db.add(event)
+    await db.flush()
+    logger.debug(
+        "crud.event.created",
+        extra={"event_id": event.id, "event_type": event_type, "correlation_id": correlation_id},
+    )
+    return event

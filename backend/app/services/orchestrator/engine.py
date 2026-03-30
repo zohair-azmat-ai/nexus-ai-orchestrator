@@ -19,7 +19,8 @@ from typing import Any
 from app.core.ids import get_correlation_id
 from app.core.logger import get_logger
 from app.core.telemetry import record_latency, record_event
-from app.schemas.chat import ChatRequest, ChatResponse
+from app.schemas.chat import ChatRequest
+from app.schemas.pipeline import PipelineResult
 from app.services.orchestrator.stages import (
     intake_stage,
     memory_stage,
@@ -35,7 +36,7 @@ logger = get_logger(__name__)
 OrchestratorContext = dict[str, Any]
 
 
-async def run_pipeline(request: ChatRequest) -> ChatResponse:
+async def run_pipeline(request: ChatRequest) -> PipelineResult:
     """Execute the full orchestration pipeline and return a ChatResponse."""
 
     correlation_id = get_correlation_id()
@@ -82,7 +83,7 @@ async def run_pipeline(request: ChatRequest) -> ChatResponse:
     record_latency("orchestrator.pipeline", duration_ms)
     record_event("orchestrator.complete", correlation_id=correlation_id, agent=ctx["selected_agent"])
 
-    return ChatResponse(
+    return PipelineResult(
         correlation_id=correlation_id,
         answer=ctx["answer"],
         selected_agent=ctx["selected_agent"],
