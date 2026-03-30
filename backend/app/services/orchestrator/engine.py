@@ -73,7 +73,10 @@ async def run_pipeline(
         "stage_timings": {},
         "execution_plan": None,
         "execution_plan_summary": None,
+        "plan_summary": None,
         "executed_steps": [],
+        "skipped_steps": [],
+        "tools_planned": [],
     }
 
     pipeline = [
@@ -133,6 +136,7 @@ async def run_pipeline(
     record_event("orchestrator.complete", correlation_id=correlation_id, agent=ctx["selected_agent"])
 
     tools_used = ctx.get("tools_used", [])
+    tools_planned = ctx.get("tools_planned", [])
 
     return PipelineResult(
         correlation_id=correlation_id,
@@ -141,14 +145,17 @@ async def run_pipeline(
         selected_agent=ctx["selected_agent"],
         execution_mode=ctx.get("execution_mode", "single_step"),
         executed_steps_count=len(ctx.get("executed_steps", [])) or 1,
+        skipped_steps_count=len(ctx.get("skipped_steps", [])),
         final_agent=ctx.get("final_agent", ctx["selected_agent"]),
         memory_used=ctx["memory_used"],
         retrieval_used=ctx["retrieval_used"],
         retrieval_context=ctx.get("retrieval_context", ""),
         retrieval_result_count=len(ctx.get("retrieval_results", [])),
         confidence=ctx.get("confidence", 0.0),
+        tools_planned=tools_planned,
         tools_used=tools_used,
         stage_timings=ctx.get("stage_timings", {}),
+        plan_summary=ctx.get("plan_summary"),
         execution_plan_summary=ctx.get("execution_plan_summary"),
         event_summary={
             "stage_events": ctx["events"],
@@ -159,9 +166,11 @@ async def run_pipeline(
             "agent": ctx["selected_agent"],
             "final_agent": ctx.get("final_agent", ctx["selected_agent"]),
             "confidence": ctx.get("confidence", 0.0),
+            "tools_planned": tools_planned,
             "tools_used": tools_used,
             "trace_id": trace_id,
             "execution_mode": ctx.get("execution_mode", "single_step"),
             "executed_steps_count": len(ctx.get("executed_steps", [])) or 1,
+            "skipped_steps_count": len(ctx.get("skipped_steps", [])),
         },
     )

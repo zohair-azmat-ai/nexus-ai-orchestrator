@@ -53,6 +53,54 @@ async def test_trace_endpoint_returns_enriched_events():
 
 
 @pytest.mark.asyncio
+async def test_trace_endpoint_contains_plan_skip_and_recommendation_events():
+    fake_results = [{"text": "Indexed docs", "score": 0.9, "source": "docs"}]
+    with (
+        patch("app.services.retrieval.search.semantic_search.search", new=AsyncMock(return_value=fake_results)),
+        patch("app.services.retrieval.search.semantic_search.format_context", return_value="Indexed docs context"),
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"X-Correlation-ID": "trace-plan-skip"},
+        ) as client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={
+                    "user_id": "obs-user",
+                    "session_id": "obs-session",
+                    "message": "Analyze docs and make an implementation roadmap",
+                },
+            )
+            assert response.status_code == 200
+            trace_response = await client.get("/api/v1/observability/trace/trace-plan-skip")
+
+    events = trace_response.json()["events"]
+    event_types = [event["event_type"] for event in events]
+    assert "plan.context.routed" in event_types
+    assert "plan.step.skipped" in event_types
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-Correlation-ID": "trace-plan-tool"},
+    ) as client:
+        response = await client.post(
+            "/api/v1/chat",
+            json={
+                "user_id": "obs-user",
+                "session_id": "obs-session",
+                "message": "Analyze docs and make an implementation roadmap",
+            },
+        )
+        assert response.status_code == 200
+        trace_response = await client.get("/api/v1/observability/trace/trace-plan-tool")
+
+    recommended_event_types = [event["event_type"] for event in trace_response.json()["events"]]
+    assert "plan.tool.recommended" in recommended_event_types
+
+
+@pytest.mark.asyncio
 async def test_metrics_endpoint_returns_request_agent_tool_and_error_counts():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await client.post("/api/v1/chat", json=CHAT_PAYLOAD)

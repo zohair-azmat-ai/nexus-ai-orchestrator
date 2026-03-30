@@ -18,13 +18,16 @@ class PipelineResult:
     selected_agent: str
     execution_mode: str
     executed_steps_count: int
+    skipped_steps_count: int
     final_agent: str
     memory_used: bool
     retrieval_used: bool
     retrieval_context: str = ""
     retrieval_result_count: int = 0
     confidence: float = 0.0
+    tools_planned: list[str] = field(default_factory=list)
     tools_used: list[str] = field(default_factory=list)
     stage_timings: dict[str, float] = field(default_factory=dict)
+    plan_summary: dict[str, Any] | None = None
     execution_plan_summary: dict[str, Any] | None = None
     event_summary: dict[str, Any] = field(default_factory=dict)

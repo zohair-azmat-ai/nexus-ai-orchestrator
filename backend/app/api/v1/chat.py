@@ -114,6 +114,9 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
             "stage_timings": pipeline_response.stage_timings,
             "execution_mode": pipeline_response.execution_mode,
             "executed_steps_count": pipeline_response.executed_steps_count,
+            "skipped_steps_count": pipeline_response.skipped_steps_count,
+            "tools_planned": pipeline_response.tools_planned,
+            "plan_summary": pipeline_response.plan_summary,
             "execution_plan_summary": pipeline_response.execution_plan_summary,
         },
     )
@@ -182,6 +185,8 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         stage_timings=pipeline_response.stage_timings,
         execution_mode=pipeline_response.execution_mode,
         executed_steps_count=pipeline_response.executed_steps_count,
+        skipped_steps_count=pipeline_response.skipped_steps_count,
+        tools_planned=pipeline_response.tools_planned,
     )
 
     return ChatResponse(
@@ -191,13 +196,16 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         selected_agent=pipeline_response.selected_agent,
         execution_mode=pipeline_response.execution_mode,
         executed_steps_count=pipeline_response.executed_steps_count,
+        skipped_steps_count=pipeline_response.skipped_steps_count,
         final_agent=pipeline_response.final_agent,
         memory_used=pipeline_response.memory_used,
         retrieval_used=pipeline_response.retrieval_used,
         retrieval_result_count=pipeline_response.retrieval_result_count,
         confidence=pipeline_response.confidence,
+        tools_planned=pipeline_response.tools_planned,
         tools_used=pipeline_response.tools_used,
         stage_timings=pipeline_response.stage_timings,
+        plan_summary=pipeline_response.plan_summary,
         execution_plan_summary=pipeline_response.execution_plan_summary,
         conversation_id=conversation.id,
         messages_count=messages_count,
