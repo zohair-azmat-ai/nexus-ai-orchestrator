@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logger import get_logger
 from app.db import crud
 from app.schemas.memory import MemoryEntry, MemoryResponse
+from app.services.memory.freshness import assess_memory_freshness, select_recent_messages
 from app.services.memory.rules import memory_rules
 
 logger = get_logger(__name__)
@@ -38,9 +39,23 @@ class MemoryManager:
         recent = await crud.list_recent_messages(
             db, conversation_id, limit=memory_rules.recent_message_limit
         )
+        total_message_count = await crud.count_messages(db, conversation_id)
 
         summary_text = summary.summary_text if summary else None
-        memory_used = bool(summary_text or recent)
+        raw_recent_messages = [{"role": m.role, "content": m.content} for m in recent]
+        selected_recent_messages, recent_compacted = select_recent_messages(
+            raw_recent_messages,
+            limit=memory_rules.recent_message_limit,
+        )
+        freshness = assess_memory_freshness(
+            summary_text=summary_text,
+            summary_version=summary.summary_version if summary else 0,
+            source_message_count=summary.source_message_count if summary else 0,
+            total_message_count=total_message_count,
+            recent_messages=raw_recent_messages,
+            selected_recent_messages=selected_recent_messages,
+        )
+        memory_used = bool(summary_text or selected_recent_messages)
 
         logger.debug(
             "memory.load",
@@ -48,16 +63,25 @@ class MemoryManager:
                 "conversation_id": conversation_id,
                 "user_id": user_id,
                 "has_summary": summary_text is not None,
-                "recent_count": len(recent),
+                "recent_count": len(selected_recent_messages),
+                "memory_freshness": freshness.freshness,
             },
         )
 
         return {
             "summary_text": summary_text,
-            "recent_messages": [{"role": m.role, "content": m.content} for m in recent],
+            "recent_messages": selected_recent_messages,
             "memory_used": memory_used,
             "memory_source": "db",
-            "message_count": len(recent),
+            "message_count": len(selected_recent_messages),
+            "total_message_count": total_message_count,
+            "summary_version": summary.summary_version if summary else 0,
+            "source_message_count": summary.source_message_count if summary else 0,
+            "memory_freshness": freshness.freshness,
+            "messages_since_summary": freshness.messages_since_summary,
+            "high_signal_recent_count": freshness.high_signal_recent_count,
+            "summary_refresh_recommended": freshness.refresh_recommended,
+            "context_compaction_applied": recent_compacted or freshness.compaction_applied,
         }
 
     async def get_user_summary(self, db: AsyncSession, user_id: str) -> MemoryResponse:

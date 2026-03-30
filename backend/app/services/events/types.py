@@ -42,9 +42,13 @@ EVENT_AGENT_ESCALATED = "agent.escalated"
 EVENT_MEMORY_LOADED = "memory.loaded"
 EVENT_MEMORY_SAVED = "memory.saved"
 EVENT_MEMORY_SUMMARIZED = "memory.summarized"
+EVENT_MEMORY_FRESHNESS_ASSESSED = "memory.freshness.assessed"
+EVENT_MEMORY_SUMMARY_REFRESH_RECOMMENDED = "memory.summary.refresh_recommended"
 
 # Retrieval events
 EVENT_RETRIEVAL_SEARCHED = "retrieval.searched"
+EVENT_RETRIEVAL_QUALITY_ASSESSED = "retrieval.quality.assessed"
+EVENT_RETRIEVAL_CONTEXT_COMPACTED = "retrieval.context.compacted"
 EVENT_INGEST_STARTED = "ingest.started"
 EVENT_INGEST_COMPLETED = "ingest.completed"
 
@@ -63,3 +67,4 @@ EVENT_JOB_FAILED = "job.failed"
 EVENT_STARTUP = "system.startup"
 EVENT_SHUTDOWN = "system.shutdown"
 EVENT_HEALTH_CHECKED = "system.health_checked"
+EVENT_RESPONSE_GROUNDING_MODE = "response.grounding.mode"

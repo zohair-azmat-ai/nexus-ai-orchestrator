@@ -14,6 +14,8 @@ from app.services.events import logger as event_logger
 from app.services.events.types import (
     EVENT_AGENT_EXECUTED,
     EVENT_AGENT_SELECTED,
+    EVENT_MEMORY_FRESHNESS_ASSESSED,
+    EVENT_MEMORY_SUMMARY_REFRESH_RECOMMENDED,
     EVENT_PLAN_CONTEXT_ROUTED,
     EVENT_PLAN_CREATED,
     EVENT_PLAN_STEP_COMPLETED,
@@ -21,8 +23,13 @@ from app.services.events.types import (
     EVENT_PLAN_STEP_SKIPPED,
     EVENT_PLAN_STEP_STARTED,
     EVENT_PLAN_TOOL_RECOMMENDED,
+    EVENT_RESPONSE_GROUNDING_MODE,
+    EVENT_RETRIEVAL_CONTEXT_COMPACTED,
+    EVENT_RETRIEVAL_QUALITY_ASSESSED,
 )
+from app.services.memory.freshness import assess_memory_freshness, select_recent_messages
 from app.services.orchestrator.planning import ExecutionPlan, ExecutionStep
+from app.services.retrieval.quality import assess_retrieval_quality
 
 logger = get_logger(__name__)
 
@@ -66,6 +73,98 @@ def _compact_messages(messages: list[dict[str, Any]], limit: int = 4) -> list[di
     return messages[:limit]
 
 
+def _is_simple_follow_up(message: str) -> bool:
+    follow_up_terms = {
+        "what did i just ask", "what were we discussing", "can you recap",
+        "give me a recap", "follow up", "what next", "and then", "thanks",
+        "thank you", "got it", "okay", "what do you mean by that",
+    }
+    return len(message.split()) <= 14 or any(term in message for term in follow_up_terms)
+
+
+def _needs_external_evidence(message: str) -> bool:
+    evidence_terms = {
+        "docs", "document", "knowledge", "search", "find", "research", "analyze",
+        "investigate", "architecture", "roadmap", "implementation", "evidence",
+        "compare", "look up",
+    }
+    return any(term in message for term in evidence_terms)
+
+
+def _should_skip_retrieval(ctx: OrchestratorContext) -> bool:
+    message = ctx["request"].message.lower()
+    memory = ctx.get("memory", {})
+    memory_freshness = memory.get("memory_freshness", "empty")
+    memory_sufficient = bool(memory.get("summary_text") or memory.get("recent_messages"))
+    return (
+        memory_sufficient
+        and memory_freshness in {"fresh", "recent_only", "aging"}
+        and _is_simple_follow_up(message)
+        and not _needs_external_evidence(message)
+    )
+
+
+def _context_sources_used(ctx: OrchestratorContext) -> list[str]:
+    sources: list[str] = []
+    memory = ctx.get("memory", {})
+    if memory.get("summary_text") or memory.get("recent_messages"):
+        sources.append("memory")
+    if ctx.get("retrieval_used"):
+        sources.append("retrieval")
+    if ctx.get("tools_used") or ctx.get("planned_tool_outputs"):
+        sources.append("tools")
+    if not sources:
+        sources.append("request")
+    return sources
+
+
+def _apply_grounding_behavior(ctx: OrchestratorContext) -> None:
+    retrieval_quality = ctx.get("retrieval_quality", "none")
+    memory_freshness = ctx.get("memory", {}).get("memory_freshness", "empty")
+    answer = ctx.get("answer", "")
+    confidence = float(ctx.get("confidence", 0.0))
+    agent_result = ctx.get("agent_result")
+    llm_based = bool(agent_result and "llm" in str(getattr(agent_result, "reasoning_summary", "")).lower())
+
+    if retrieval_quality == "strong":
+        grounding_mode = "retrieval_strong"
+        confidence = max(confidence, 0.82)
+    elif retrieval_quality == "weak":
+        grounding_mode = "retrieval_weak"
+        confidence = min(confidence or 0.62, 0.68)
+        cautious_prefix = "Based on limited retrieved evidence, here is a cautious assessment:\n\n"
+        if answer and not answer.startswith("Based on limited retrieved evidence"):
+            answer = f"{cautious_prefix}{answer}"
+    elif ctx.get("memory_used"):
+        grounding_mode = "memory_only"
+        confidence = confidence if llm_based else min(confidence or 0.64, 0.72)
+        if answer and not llm_based and not answer.startswith("Based on the available conversation context"):
+            answer = f"Based on the available conversation context, here's the best answer I can give.\n\n{answer}"
+    else:
+        grounding_mode = "ungrounded"
+        confidence = confidence if llm_based else min(confidence or 0.45, 0.5)
+        note = "\n\nThis answer is based on the current request only and may need supporting documents for stronger grounding."
+        if answer and not llm_based and "may need supporting documents for stronger grounding" not in answer:
+            answer = f"{answer}{note}"
+
+    if memory_freshness == "stale" and "summary may be missing recent details" not in answer:
+        answer = f"{answer}\n\nNote: the stored conversation summary may be missing recent details."
+
+    ctx["grounding_mode"] = grounding_mode
+    ctx["answer"] = answer
+    ctx["confidence"] = round(confidence, 2)
+
+    event_logger.emit(
+        EVENT_RESPONSE_GROUNDING_MODE,
+        stage="response",
+        component=ctx.get("final_agent", ctx.get("selected_agent", "support")),
+        status="success",
+        grounding_mode=grounding_mode,
+        retrieval_quality=retrieval_quality,
+        memory_freshness=memory_freshness,
+    )
+
+
 def _build_step_input_summary(ctx: OrchestratorContext, prior_outputs: list[dict[str, str]]) -> str:
     message = ctx["request"].message
     if not prior_outputs:
@@ -102,6 +201,10 @@ def _route_step_context(ctx: OrchestratorContext, step: ExecutionStep, prior_out
     if routed_memory:
         routed_memory["memory_used"] = True
         routed_memory["memory_source"] = base_memory.get("memory_source", "db")
+        routed_memory["memory_freshness"] = base_memory.get("memory_freshness", "empty")
+        routed_memory["summary_refresh_recommended"] = base_memory.get("summary_refresh_recommended", False)
+        routed_memory["messages_since_summary"] = base_memory.get("messages_since_summary", 0)
+        routed_memory["context_compaction_applied"] = base_memory.get("context_compaction_applied", False)
 
     if "tool_outputs" in required and ctx.get("planned_tool_outputs"):
         routed_memory["planned_tool_outputs"] = dict(ctx["planned_tool_outputs"])
@@ -139,6 +242,62 @@ def _route_step_context(ctx: OrchestratorContext, step: ExecutionStep, prior_out
     )
 
 
+async def _execute_recommended_tools(ctx: OrchestratorContext, step: ExecutionStep) -> None:
+    if not step.recommended_tools:
+        return
+
+    import app.services.tools  # noqa: F401
+
+    from app.services.tools.registry import tool_registry
+
+    for tool_name in step.recommended_tools:
+        if tool_name != "search_knowledge_base":
+            continue
+        if ctx.get("retrieval_quality") == "strong":
+            continue
+
+        tool = tool_registry.get(tool_name)
+        if tool is None:
+            continue
+
+        try:
+            result = await tool.call(query=ctx["request"].message)
+        except Exception as exc:
+            logger.warning(
+                "plan_tool_execution.failed",
+                extra={"tool": tool_name, "step": step.step_id, "error": str(exc)},
+            )
+            continue
+        ctx.setdefault("tools_used", []).append(tool_name)
+        ctx.setdefault("planned_tool_outputs", {})[tool_name] = result
+
+        assessment = assess_retrieval_quality(result.get("results", []))
+        ctx["retrieval_results"] = assessment.compacted_results
+        ctx["retrieval_context"] = assessment.compacted_context
+        ctx["retrieval_used"] = bool(assessment.compacted_results)
+        ctx["retrieval_quality"] = assessment.quality
+        ctx["context_compaction_applied"] = (
+            ctx.get("context_compaction_applied", False) or assessment.compaction_applied
+        )
+        ctx["retrieval_metadata"] = assessment.to_metadata()
+
+        event_logger.emit(
+            EVENT_RETRIEVAL_QUALITY_ASSESSED,
+            stage="retrieval",
+            component=tool_name,
+            status="success",
+            **assessment.to_metadata(),
+        )
+        if assessment.compaction_applied:
+            event_logger.emit(
+                EVENT_RETRIEVAL_CONTEXT_COMPACTED,
+                stage="retrieval",
+                component=tool_name,
+                status="success",
+                retained_results=len(assessment.compacted_results),
+            )
+
+
 def _execute_system_step(ctx: OrchestratorContext, step: ExecutionStep) -> None:
     if step.target == "use_stored_summary":
         summary_text = ctx.get("base_memory", {}).get("summary_text") or ctx.get("memory", {}).get("summary_text", "")
@@ -174,21 +333,94 @@ async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
                 conversation_id=conversation_id,
                 user_id=request.user_id,
             )
+            if "memory_freshness" not in mem:
+                derived_freshness = assess_memory_freshness(
+                    summary_text=mem.get("summary_text"),
+                    summary_version=mem.get("summary_version", 1 if mem.get("summary_text") else 0),
+                    source_message_count=mem.get("source_message_count", mem.get("message_count", 0)),
+                    total_message_count=mem.get("total_message_count", mem.get("message_count", 0)),
+                    recent_messages=mem.get("recent_messages", []),
+                    selected_recent_messages=mem.get("recent_messages", []),
+                )
+                mem = {
+                    **mem,
+                    "memory_freshness": derived_freshness.freshness,
+                    "messages_since_summary": derived_freshness.messages_since_summary,
+                    "high_signal_recent_count": derived_freshness.high_signal_recent_count,
+                    "summary_refresh_recommended": derived_freshness.refresh_recommended,
+                    "context_compaction_applied": mem.get("context_compaction_applied", False) or derived_freshness.compaction_applied,
+                }
             ctx["memory"] = mem
             ctx["memory_used"] = mem["memory_used"]
         except Exception as exc:
             logger.warning("memory_stage.failed", extra={"error": str(exc)})
-            ctx["memory"] = {"history": request.history, "summary": None}
-            ctx["memory_used"] = bool(request.history)
+            selected_recent_messages, compacted = select_recent_messages(
+                [{"role": item.role, "content": item.content} for item in request.history],
+                limit=4,
+            )
+            freshness = assess_memory_freshness(
+                summary_text=None,
+                summary_version=0,
+                source_message_count=0,
+                total_message_count=len(request.history),
+                recent_messages=[{"role": item.role, "content": item.content} for item in request.history],
+                selected_recent_messages=selected_recent_messages,
+            )
+            ctx["memory"] = {
+                "recent_messages": selected_recent_messages,
+                "memory_source": "request",
+                "memory_freshness": freshness.freshness,
+                "summary_refresh_recommended": freshness.refresh_recommended,
+                "context_compaction_applied": compacted or freshness.compaction_applied,
+            }
+            ctx["memory_used"] = bool(selected_recent_messages)
     else:
-        ctx["memory"] = {"history": request.history, "summary": None}
-        ctx["memory_used"] = bool(request.history)
+        raw_history = [{"role": item.role, "content": item.content} for item in request.history]
+        selected_recent_messages, compacted = select_recent_messages(raw_history, limit=4)
+        freshness = assess_memory_freshness(
+            summary_text=None,
+            summary_version=0,
+            source_message_count=0,
+            total_message_count=len(raw_history),
+            recent_messages=raw_history,
+            selected_recent_messages=selected_recent_messages,
+        )
+        ctx["memory"] = {
+            "recent_messages": selected_recent_messages,
+            "memory_source": "request",
+            "memory_freshness": freshness.freshness,
+            "summary_refresh_recommended": freshness.refresh_recommended,
+            "context_compaction_applied": compacted or freshness.compaction_applied,
+        }
+        ctx["memory_used"] = bool(selected_recent_messages)
+
+    ctx["context_compaction_applied"] = ctx.get("context_compaction_applied", False) or ctx["memory"].get(
+        "context_compaction_applied", False
+    )
+    event_logger.emit(
+        EVENT_MEMORY_FRESHNESS_ASSESSED,
+        stage="memory",
+        component=ctx["memory"].get("memory_source", "request"),
+        status="success",
+        memory_freshness=ctx["memory"].get("memory_freshness", "empty"),
+        messages_since_summary=ctx["memory"].get("messages_since_summary", 0),
+        summary_refresh_recommended=ctx["memory"].get("summary_refresh_recommended", False),
+    )
+    if ctx["memory"].get("summary_refresh_recommended"):
+        event_logger.emit(
+            EVENT_MEMORY_SUMMARY_REFRESH_RECOMMENDED,
+            stage="memory",
+            component=ctx["memory"].get("memory_source", "request"),
+            status="success",
+            memory_freshness=ctx["memory"].get("memory_freshness", "empty"),
+        )
 
     _append_stage_event(
         ctx,
         "memory",
         memory_used=ctx["memory_used"],
         memory_source=ctx["memory"].get("memory_source", "request"),
+        memory_freshness=ctx["memory"].get("memory_freshness", "empty"),
     )
     return ctx
 
@@ -197,6 +429,36 @@ async def retrieval_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     from app.services.retrieval.search import semantic_search
 
     message = ctx["request"].message
+
+    if _should_skip_retrieval(ctx):
+        results: list[dict[str, Any]] = []
+        assessment = assess_retrieval_quality(results)
+        ctx["retrieval_results"] = []
+        ctx["retrieval_used"] = False
+        ctx["retrieval_context"] = ""
+        ctx["retrieval_quality"] = "none"
+        ctx["retrieval_metadata"] = assessment.to_metadata()
+        ctx["base_retrieval_context"] = ""
+        ctx["base_retrieval_results"] = []
+        ctx["base_memory"] = dict(ctx.get("memory", {}))
+        event_logger.emit(
+            EVENT_RETRIEVAL_QUALITY_ASSESSED,
+            stage="retrieval",
+            component="semantic_search",
+            status="success",
+            skipped=True,
+            skip_reason="memory_sufficient",
+            **assessment.to_metadata(),
+        )
+        _append_stage_event(
+            ctx,
+            "retrieval",
+            results=0,
+            retrieval_used=False,
+            retrieval_quality="none",
+            skipped=True,
+        )
+        return ctx
 
     try:
         results = await semantic_search.search(message)
@@ -207,18 +469,41 @@ async def retrieval_stage(ctx: OrchestratorContext) -> OrchestratorContext:
         )
         results = []
 
-    ctx["retrieval_results"] = results
-    ctx["retrieval_used"] = len(results) > 0
-    ctx["retrieval_context"] = semantic_search.format_context(results) if results else ""
+    assessment = assess_retrieval_quality(results)
+    ctx["retrieval_results"] = assessment.compacted_results
+    ctx["retrieval_used"] = len(assessment.compacted_results) > 0
+    ctx["retrieval_context"] = assessment.compacted_context
+    ctx["retrieval_quality"] = assessment.quality
+    ctx["retrieval_metadata"] = assessment.to_metadata()
     ctx["base_retrieval_context"] = ctx["retrieval_context"]
-    ctx["base_retrieval_results"] = list(results)
+    ctx["base_retrieval_results"] = list(assessment.compacted_results)
     ctx["base_memory"] = dict(ctx.get("memory", {}))
+    ctx["context_compaction_applied"] = (
+        ctx.get("context_compaction_applied", False) or assessment.compaction_applied
+    )
+
+    event_logger.emit(
+        EVENT_RETRIEVAL_QUALITY_ASSESSED,
+        stage="retrieval",
+        component="semantic_search",
+        status="success",
+        **assessment.to_metadata(),
+    )
+    if assessment.compaction_applied:
+        event_logger.emit(
+            EVENT_RETRIEVAL_CONTEXT_COMPACTED,
+            stage="retrieval",
+            component="semantic_search",
+            status="success",
+            retained_results=len(assessment.compacted_results),
+        )
 
     _append_stage_event(
         ctx,
         "retrieval",
-        results=len(results),
+        results=len(assessment.compacted_results),
         retrieval_used=ctx["retrieval_used"],
+        retrieval_quality=assessment.quality,
     )
     return ctx
 
@@ -346,6 +631,7 @@ async def _run_step(ctx: OrchestratorContext, step: ExecutionStep) -> Orchestrat
 
     start = time.monotonic()
     try:
+        await _execute_recommended_tools(ctx, step)
         if step.type == "agent":
             agent = AGENT_REGISTRY.get(step.target)
             if agent is None:
@@ -429,6 +715,11 @@ async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     for step in plan.steps:
         ctx = await _run_step(ctx, step)
 
+    _apply_grounding_behavior(ctx)
+
+    context_sources_used = _context_sources_used(ctx)
+    ctx["context_sources_used"] = context_sources_used
+
     ctx["execution_plan_summary"] = {
         "plan_id": plan.plan_id,
         "execution_mode": plan.execution_mode,
@@ -441,6 +732,9 @@ async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
         "executed_steps_count": len(ctx.get("executed_steps", [])) or 1,
         "skipped_steps_count": len(ctx.get("skipped_steps", [])),
         "tools_planned": plan.tools_planned,
+        "retrieval_quality": ctx.get("retrieval_quality", "none"),
+        "memory_freshness": ctx.get("memory", {}).get("memory_freshness", "empty"),
+        "context_sources_used": context_sources_used,
     }
 
     _append_stage_event(
@@ -452,6 +746,8 @@ async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
         executed_steps_count=len(ctx.get("executed_steps", [])) or 1,
         skipped_steps_count=len(ctx.get("skipped_steps", [])),
         execution_mode=plan.execution_mode,
+        retrieval_quality=ctx.get("retrieval_quality", "none"),
+        memory_freshness=ctx.get("memory", {}).get("memory_freshness", "empty"),
     )
     return ctx
 
@@ -488,9 +784,13 @@ async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "memory_used": ctx["memory_used"],
             "retrieval_used": ctx["retrieval_used"],
             "retrieval_results": len(ctx.get("retrieval_results", [])),
+            "retrieval_quality": ctx.get("retrieval_quality", "none"),
+            "memory_freshness": ctx.get("memory", {}).get("memory_freshness", "empty"),
             "escalated": ctx["escalated"],
             "tools_planned": ctx.get("tools_planned", []),
             "tools_used": ctx.get("tools_used", []),
+            "context_sources_used": ctx.get("context_sources_used", []),
+            "context_compaction_applied": ctx.get("context_compaction_applied", False),
             "event_count": len(ctx["events"]),
             "stage_timings": ctx.get("stage_timings", {}),
             "execution_mode": ctx.get("execution_mode", "single_step"),

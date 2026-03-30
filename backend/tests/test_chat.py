@@ -29,6 +29,9 @@ async def test_chat_response_shape():
     assert "selected_agent" in data
     assert "memory_used" in data
     assert "retrieval_used" in data
+    assert "retrieval_quality" in data
+    assert "memory_freshness" in data
+    assert "context_sources_used" in data
     assert "conversation_id" in data
     assert "messages_count" in data
     assert isinstance(data["answer"], str)

@@ -54,10 +54,12 @@ async def test_trace_endpoint_returns_enriched_events():
 
 @pytest.mark.asyncio
 async def test_trace_endpoint_contains_plan_skip_and_recommendation_events():
-    fake_results = [{"text": "Indexed docs", "score": 0.9, "source": "docs"}]
+    fake_results = [
+        {"text": "Indexed docs provide a modular architecture plan for the backend services.", "score": 0.92, "source": "docs"},
+        {"text": "Indexed docs also outline milestone sequencing and testing checkpoints.", "score": 0.85, "source": "docs"},
+    ]
     with (
         patch("app.services.retrieval.search.semantic_search.search", new=AsyncMock(return_value=fake_results)),
-        patch("app.services.retrieval.search.semantic_search.format_context", return_value="Indexed docs context"),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app),

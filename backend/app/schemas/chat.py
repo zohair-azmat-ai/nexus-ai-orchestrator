@@ -30,7 +30,11 @@ class ChatResponse(BaseModel):
     memory_used: bool
     retrieval_used: bool
     retrieval_result_count: int = 0
+    retrieval_quality: str = "none"
     confidence: float = 0.0
+    memory_freshness: str = "empty"
+    context_sources_used: list[str] = Field(default_factory=list)
+    context_compaction_applied: bool = False
     tools_planned: list[str] = Field(default_factory=list)
     tools_used: list[str] = Field(default_factory=list)
     stage_timings: dict[str, float] = Field(default_factory=dict)

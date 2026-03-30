@@ -42,8 +42,11 @@ class PlanningSnapshot:
     has_recent_messages: bool
     has_retrieval_results: bool
     has_retrieval_context: bool
+    retrieval_quality: str
     has_request_history: bool
     has_conversation_history: bool
+    memory_freshness: str
+    summary_refresh_recommended: bool
     strong_escalation: bool
 
 
@@ -78,16 +81,16 @@ class PlannerAgent(BaseAgent):
                 "Investigate the underlying findings or evidence",
                 recommended_tools=self._recommended_research_tools(snapshot),
                 required_context=["retrieval_context", "memory_summary"],
-                can_skip=snapshot.has_retrieval_context,
-                skip_reason="Retrieval context is already available for the downstream steps" if snapshot.has_retrieval_context else None,
+                can_skip=snapshot.retrieval_quality == "strong",
+                skip_reason="Retrieval context is already strong enough for the downstream steps" if snapshot.retrieval_quality == "strong" else None,
             )
             summarizer_step = make_agent_step(
                 "summarizer",
                 "Condense the findings into a concise synthesis",
                 recommended_tools=self._recommended_summarizer_tools(snapshot),
                 required_context=["memory_summary", "recent_messages", "previous_step_output", "retrieval_context"],
-                can_skip=snapshot.has_memory_summary and not snapshot.has_recent_messages,
-                skip_reason="Stored summary already provides a concise recap" if snapshot.has_memory_summary and not snapshot.has_recent_messages else None,
+                can_skip=snapshot.has_memory_summary and snapshot.memory_freshness == "fresh" and not snapshot.has_recent_messages,
+                skip_reason="Stored summary already provides a concise recap" if snapshot.has_memory_summary and snapshot.memory_freshness == "fresh" and not snapshot.has_recent_messages else None,
                 depends_on=[research_step.step_id],
             )
             planner_step = make_agent_step(
@@ -106,8 +109,8 @@ class PlannerAgent(BaseAgent):
                 "Investigate the issue and gather supporting context",
                 recommended_tools=self._recommended_support_tools(snapshot) if first_agent == "support" else self._recommended_research_tools(snapshot),
                 required_context=["memory_summary", "recent_messages", "retrieval_context"],
-                can_skip=first_agent == "research" and snapshot.has_retrieval_context,
-                skip_reason="Retrieval context is already available for escalation review" if first_agent == "research" and snapshot.has_retrieval_context else None,
+                can_skip=first_agent == "research" and snapshot.retrieval_quality == "strong",
+                skip_reason="Retrieval context is already strong enough for escalation review" if first_agent == "research" and snapshot.retrieval_quality == "strong" else None,
             )
             escalation_step = make_agent_step(
                 "escalation",
@@ -124,8 +127,8 @@ class PlannerAgent(BaseAgent):
                 "Analyze available documents and extract relevant findings",
                 recommended_tools=self._recommended_research_tools(snapshot),
                 required_context=["retrieval_context", "memory_summary"],
-                can_skip=snapshot.has_retrieval_context,
-                skip_reason="Retrieval context already provides evidence for planning" if snapshot.has_retrieval_context else None,
+                can_skip=snapshot.retrieval_quality == "strong",
+                skip_reason="Retrieval context already provides strong evidence for planning" if snapshot.retrieval_quality == "strong" else None,
             )
             planner_step = make_agent_step(
                 "planner",
@@ -147,8 +150,8 @@ class PlannerAgent(BaseAgent):
                 "summarizer",
                 "Condense the plan into a brief executive summary",
                 required_context=["previous_step_output", "memory_summary"],
-                can_skip=snapshot.has_memory_summary and "brief" in snapshot.lower_message,
-                skip_reason="Existing summary already satisfies the brief recap intent" if snapshot.has_memory_summary and "brief" in snapshot.lower_message else None,
+                can_skip=snapshot.has_memory_summary and snapshot.memory_freshness == "fresh" and "brief" in snapshot.lower_message,
+                skip_reason="Existing summary already satisfies the brief recap intent" if snapshot.has_memory_summary and snapshot.memory_freshness == "fresh" and "brief" in snapshot.lower_message else None,
                 depends_on=[planner_step.step_id],
             )
             return make_plan([planner_step, summarizer_step])
@@ -179,8 +182,11 @@ class PlannerAgent(BaseAgent):
             has_recent_messages=bool(recent_messages),
             has_retrieval_results=bool(ctx.get("retrieval_results")),
             has_retrieval_context=bool(ctx.get("retrieval_context")),
+            retrieval_quality=ctx.get("retrieval_quality", "none"),
             has_request_history=bool(request_history),
             has_conversation_history=bool(recent_messages or request_history),
+            memory_freshness=memory.get("memory_freshness", "empty"),
+            summary_refresh_recommended=bool(memory.get("summary_refresh_recommended", False)),
             strong_escalation=ctx["selected_agent"] == "escalation" or any(hint in lower_message for hint in _ESCALATION_HINTS),
         )
 
@@ -198,7 +204,14 @@ class PlannerAgent(BaseAgent):
 
     def _should_use_stored_summary(self, snapshot: PlanningSnapshot) -> bool:
         recap_terms = {"brief", "recap", "summary", "summarize", "tldr", "overview"}
-        return snapshot.has_memory_summary and any(term in snapshot.lower_message for term in recap_terms) and "next step" not in snapshot.lower_message and "plan" not in snapshot.lower_message
+        return (
+            snapshot.has_memory_summary
+            and snapshot.memory_freshness in {"fresh", "aging"}
+            and not snapshot.summary_refresh_recommended
+            and any(term in snapshot.lower_message for term in recap_terms)
+            and "next step" not in snapshot.lower_message
+            and "plan" not in snapshot.lower_message
+        )
 
     def _should_research_summarize_plan(self, snapshot: PlanningSnapshot) -> bool:
         return (
@@ -229,7 +242,7 @@ class PlannerAgent(BaseAgent):
         return any(term in message for term in {"issue", "bug", "error", "problem", "login", "support", "customer"})
 
     def _recommended_research_tools(self, snapshot: PlanningSnapshot) -> list[str]:
-        return ["search_knowledge_base"] if not snapshot.has_retrieval_context else []
+        return ["search_knowledge_base"] if snapshot.retrieval_quality != "strong" else []
 
     def _recommended_support_tools(self, snapshot: PlanningSnapshot) -> list[str]:
         if snapshot.has_memory_summary or snapshot.has_recent_messages:
@@ -239,10 +252,10 @@ class PlannerAgent(BaseAgent):
         return ["get_user_context"]
 
     def _recommended_summarizer_tools(self, snapshot: PlanningSnapshot) -> list[str]:
-        return ["summarize_conversation"] if snapshot.has_recent_messages and not snapshot.has_memory_summary else []
+        return ["summarize_conversation"] if snapshot.has_recent_messages and (not snapshot.has_memory_summary or snapshot.summary_refresh_recommended) else []
 
     def _recommended_planner_tools(self, snapshot: PlanningSnapshot) -> list[str]:
-        return ["search_knowledge_base"] if not snapshot.has_retrieval_context else []
+        return ["search_knowledge_base"] if snapshot.retrieval_quality != "strong" else []
 
     def _recommended_tools_for_agent(self, agent_name: str, snapshot: PlanningSnapshot) -> list[str]:
         if agent_name == "research":

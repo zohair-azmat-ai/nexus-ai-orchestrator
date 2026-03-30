@@ -24,7 +24,11 @@ class PipelineResult:
     retrieval_used: bool
     retrieval_context: str = ""
     retrieval_result_count: int = 0
+    retrieval_quality: str = "none"
     confidence: float = 0.0
+    memory_freshness: str = "empty"
+    context_sources_used: list[str] = field(default_factory=list)
+    context_compaction_applied: bool = False
     tools_planned: list[str] = field(default_factory=list)
     tools_used: list[str] = field(default_factory=list)
     stage_timings: dict[str, float] = field(default_factory=dict)

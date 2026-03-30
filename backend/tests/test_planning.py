@@ -36,11 +36,12 @@ async def test_simple_request_stays_single_step():
 
 @pytest.mark.asyncio
 async def test_retrieval_is_skipped_when_context_already_exists():
-    fake_results = [{"text": "Architecture docs", "score": 0.9, "source": "docs"}]
-    fake_context = "Architecture docs say to implement the API incrementally."
+    fake_results = [
+        {"text": "Architecture docs say to implement the API incrementally with modular services.", "score": 0.91, "source": "docs"},
+        {"text": "Roadmap docs recommend validating one backend milestone at a time.", "score": 0.86, "source": "docs"},
+    ]
     with (
         patch("app.services.retrieval.search.semantic_search.search", new=AsyncMock(return_value=fake_results)),
-        patch("app.services.retrieval.search.semantic_search.format_context", return_value=fake_context),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
@@ -53,10 +54,11 @@ async def test_retrieval_is_skipped_when_context_already_exists():
     assert body["execution_mode"] == "multi_step"
     assert body["executed_steps_count"] == 1
     assert body["skipped_steps_count"] == 1
+    assert body["retrieval_quality"] == "strong"
     steps = body["execution_plan_summary"]["steps"]
     assert steps[0]["target"] == "research"
     assert steps[0]["status"] == "skipped"
-    assert "Retrieval context already provides evidence" in (steps[0]["skip_reason"] or "")
+    assert "strong evidence" in (steps[0]["skip_reason"] or "")
     assert steps[1]["target"] == "planner"
     assert steps[1]["depends_on"] == [steps[0]["step_id"]]
 
@@ -137,10 +139,12 @@ async def test_step_dependencies_are_respected_in_plan():
 
 @pytest.mark.asyncio
 async def test_skipped_steps_reflected_in_response_metadata():
-    fake_results = [{"text": "Indexed docs", "score": 0.9, "source": "docs"}]
+    fake_results = [
+        {"text": "Indexed docs provide implementation notes for the API layer and deployment flow.", "score": 0.9, "source": "docs"},
+        {"text": "Indexed docs also cover roadmap sequencing and testing checkpoints.", "score": 0.84, "source": "docs"},
+    ]
     with (
         patch("app.services.retrieval.search.semantic_search.search", new=AsyncMock(return_value=fake_results)),
-        patch("app.services.retrieval.search.semantic_search.format_context", return_value="Indexed docs context"),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
