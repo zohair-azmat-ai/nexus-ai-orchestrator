@@ -1,11 +1,13 @@
 """
-Tests for Phase 3 Step 1 — multi-agent orchestration and agent selection.
+Tests for Phase 3 Steps 1 & 2 — multi-agent orchestration and LLM-powered intelligence.
 
 All tests run against SQLite in-memory (via conftest.override_db) and do not
 require live OpenAI, Qdrant, or Postgres services.
+LLM path tests mock openai_client.complete() so no real API key is needed.
 """
 
 import pytest
+from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
@@ -204,7 +206,9 @@ async def test_support_agent_returns_agent_result():
 @pytest.mark.asyncio
 async def test_support_agent_uses_retrieval_context():
     ctx = _make_ctx("help with login", retrieval_context="Login docs: use SSO.")
-    ctx = await AGENT_REGISTRY["support"].run(ctx)
+    # Force deterministic path to test template-based answer
+    with patch("app.core.config.settings.openai_api_key", ""):
+        ctx = await AGENT_REGISTRY["support"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert result.confidence >= 0.85
     assert "knowledge base" in ctx["answer"].lower()
@@ -223,7 +227,9 @@ async def test_research_agent_returns_agent_result():
 @pytest.mark.asyncio
 async def test_research_agent_uses_retrieval_context():
     ctx = _make_ctx("What is Qdrant?", retrieval_context="Qdrant is a vector search engine.")
-    ctx = await AGENT_REGISTRY["research"].run(ctx)
+    # Force deterministic path to test template-based answer
+    with patch("app.core.config.settings.openai_api_key", ""):
+        ctx = await AGENT_REGISTRY["research"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert result.confidence >= 0.8
     assert "source" in ctx["answer"].lower() or "finding" in ctx["answer"].lower()
@@ -252,7 +258,9 @@ async def test_summarizer_agent_with_recent_messages():
     }
     ctx = _make_ctx("Summarize", memory=memory)
     ctx["memory_used"] = True
-    ctx = await AGENT_REGISTRY["summarizer"].run(ctx)
+    # Force deterministic path to test template-based bullet format
+    with patch("app.core.config.settings.openai_api_key", ""):
+        ctx = await AGENT_REGISTRY["summarizer"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert result.confidence >= 0.85
     assert "USER" in ctx["answer"] or "ASSISTANT" in ctx["answer"]
@@ -261,7 +269,9 @@ async def test_summarizer_agent_with_recent_messages():
 @pytest.mark.asyncio
 async def test_planner_agent_returns_numbered_steps():
     ctx = _make_ctx("How to build a SaaS product")
-    ctx = await AGENT_REGISTRY["planner"].run(ctx)
+    # Force deterministic path to test template-based steps
+    with patch("app.core.config.settings.openai_api_key", ""):
+        ctx = await AGENT_REGISTRY["planner"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert isinstance(result, AgentResult)
     assert "Step 1" in ctx["answer"]
@@ -271,7 +281,9 @@ async def test_planner_agent_returns_numbered_steps():
 @pytest.mark.asyncio
 async def test_escalation_agent_sets_escalation_required():
     ctx = _make_ctx("I want to sue your company, this is a legal matter")
-    ctx = await AGENT_REGISTRY["escalation"].run(ctx)
+    # Force deterministic path so we can assert on template phrasing
+    with patch("app.core.config.settings.openai_api_key", ""):
+        ctx = await AGENT_REGISTRY["escalation"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert result.escalation_required is True
     assert ctx["escalated"] is True
@@ -285,3 +297,178 @@ async def test_escalation_agent_detects_reason():
     ctx = await AGENT_REGISTRY["escalation"].run(ctx)
     result: AgentResult = ctx["agent_result"]
     assert result.notes.get("detected_reason") == "billing/refund request"
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Step 2 — LLM path tests (openai_client.complete is mocked)
+# ---------------------------------------------------------------------------
+
+_LLM_PATCH = "app.services.llm.openai_client.openai_client.complete"
+_SETTINGS_PATCH = "app.core.config.settings.openai_api_key"
+
+
+@pytest.mark.asyncio
+async def test_support_agent_calls_llm_when_key_is_set():
+    ctx = _make_ctx("My feature is broken")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM support answer") as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["support"].run(ctx)
+
+    mock_llm.assert_called_once()
+    assert ctx["answer"] == "LLM support answer"
+    assert ctx["agent_result"].confidence >= 0.75
+
+
+@pytest.mark.asyncio
+async def test_support_agent_falls_back_without_api_key():
+    ctx = _make_ctx("My feature is broken")
+    with patch(_SETTINGS_PATCH, ""):
+        ctx = await AGENT_REGISTRY["support"].run(ctx)
+
+    # No LLM used — deterministic fallback
+    assert len(ctx["answer"]) > 0
+    assert ctx["agent_result"].confidence == 0.5  # no context, no llm
+
+
+@pytest.mark.asyncio
+async def test_support_agent_falls_back_on_llm_error():
+    ctx = _make_ctx("Something is wrong")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, side_effect=RuntimeError("API error")),
+    ):
+        ctx = await AGENT_REGISTRY["support"].run(ctx)
+
+    # Should produce a deterministic answer, not raise
+    assert len(ctx["answer"]) > 0
+    assert ctx["agent_result"].confidence == 0.5
+
+
+@pytest.mark.asyncio
+async def test_research_agent_calls_llm_when_key_is_set():
+    ctx = _make_ctx("Explain how vector search works")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM research answer") as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["research"].run(ctx)
+
+    mock_llm.assert_called_once()
+    assert ctx["answer"] == "LLM research answer"
+
+
+@pytest.mark.asyncio
+async def test_summarizer_agent_calls_llm_when_content_and_key_present():
+    memory = {
+        "recent_messages": [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi"}],
+        "summary_text": None,
+    }
+    ctx = _make_ctx("Summarize", memory=memory)
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM summary") as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["summarizer"].run(ctx)
+
+    mock_llm.assert_called_once()
+    assert ctx["answer"] == "LLM summary"
+    assert ctx["agent_result"].confidence >= 0.9
+
+
+@pytest.mark.asyncio
+async def test_summarizer_agent_skips_llm_when_no_content():
+    """Summarizer should not call LLM when there's nothing to summarize."""
+    ctx = _make_ctx("Summarize")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock) as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["summarizer"].run(ctx)
+
+    mock_llm.assert_not_called()
+    assert ctx["agent_result"].confidence == 0.3
+
+
+@pytest.mark.asyncio
+async def test_planner_agent_calls_llm_when_key_is_set():
+    ctx = _make_ctx("Build a microservices architecture")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM plan") as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["planner"].run(ctx)
+
+    mock_llm.assert_called_once()
+    assert ctx["answer"] == "LLM plan"
+    assert ctx["agent_result"].confidence >= 0.8
+
+
+@pytest.mark.asyncio
+async def test_escalation_agent_calls_llm_when_key_is_set():
+    ctx = _make_ctx("I am angry and want to escalate this")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM escalation response") as mock_llm,
+    ):
+        ctx = await AGENT_REGISTRY["escalation"].run(ctx)
+
+    mock_llm.assert_called_once()
+    assert ctx["answer"] == "LLM escalation response"
+    # Escalation always sets these regardless of LLM path
+    assert ctx["escalated"] is True
+    assert ctx["agent_result"].escalation_required is True
+    assert ctx["agent_result"].confidence == 1.0
+
+
+@pytest.mark.asyncio
+async def test_llm_reasoning_summary_reflects_path():
+    ctx = _make_ctx("How does this work?", retrieval_context="Some docs here.")
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="LLM research answer"),
+    ):
+        ctx = await AGENT_REGISTRY["research"].run(ctx)
+
+    result: AgentResult = ctx["agent_result"]
+    assert "llm" in result.reasoning_summary
+    assert "retrieval" in result.reasoning_summary
+
+
+@pytest.mark.asyncio
+async def test_fallback_reasoning_summary_reflects_path():
+    ctx = _make_ctx("How does this work?", retrieval_context="Some docs here.")
+    with patch(_SETTINGS_PATCH, ""):
+        ctx = await AGENT_REGISTRY["research"].run(ctx)
+
+    result: AgentResult = ctx["agent_result"]
+    assert "deterministic" in result.reasoning_summary
+    assert "retrieval" in result.reasoning_summary
+
+
+@pytest.mark.asyncio
+async def test_chat_endpoint_still_works_without_api_key():
+    """Full pipeline must succeed even when OpenAI key is absent."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post("/api/v1/chat", json=_payload("Help me fix a bug"))
+    assert r.status_code == 200
+    data = r.json()
+    assert data["selected_agent"] == "support"
+    assert len(data["answer"]) > 0
+    assert "confidence" in data
+
+
+@pytest.mark.asyncio
+async def test_chat_endpoint_with_mocked_llm():
+    """Full pipeline with mocked LLM should return the LLM answer."""
+    with (
+        patch(_SETTINGS_PATCH, "sk-fake-key"),
+        patch(_LLM_PATCH, new_callable=AsyncMock, return_value="Mocked LLM answer for chat"),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            r = await client.post("/api/v1/chat", json=_payload("Hello support"))
+    assert r.status_code == 200
+    data = r.json()
+    assert data["answer"] == "Mocked LLM answer for chat"
+    assert data["confidence"] >= 0.75

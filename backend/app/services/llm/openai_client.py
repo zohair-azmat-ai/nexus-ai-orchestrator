@@ -45,6 +45,16 @@ class OpenAIClient:
         )
         return response.choices[0].message.content or ""
 
+    async def complete(
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        temperature: float = 0.3,
+        max_tokens: int = 1024,
+    ) -> str:
+        """Preferred entry point for agent calls — delegates to chat_complete."""
+        return await self.chat_complete(messages, model, temperature, max_tokens)
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for a list of texts."""
         response = await self.client.embeddings.create(
