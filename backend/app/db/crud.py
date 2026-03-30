@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.conversation import Conversation, Message
 from app.db.models.event import EventLog
 from app.db.models.summary import ConversationSummary
+from app.db.models.background_job import BackgroundJob
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -157,6 +158,67 @@ async def list_recent_messages(
 
 
 # ─── Events ───────────────────────────────────────────────────────────────────
+
+# ─── Background Jobs ──────────────────────────────────────────────────────────
+
+async def create_job(
+    db: AsyncSession,
+    job_type: str,
+    payload: dict[str, Any],
+) -> BackgroundJob:
+    """Persist a new background job record in 'queued' status."""
+    job = BackgroundJob(
+        id=str(uuid.uuid4()),
+        job_type=job_type,
+        status="queued",
+        payload_json=payload,
+    )
+    db.add(job)
+    await db.flush()
+    logger.debug("crud.job.created", extra={"job_id": job.id, "job_type": job_type})
+    return job
+
+
+async def update_job_status(
+    db: AsyncSession,
+    job_id: str,
+    status: str,
+    result: dict[str, Any] | None = None,
+    error: str | None = None,
+) -> BackgroundJob | None:
+    """Update job status, and optionally set result or error."""
+    job = await get_job_by_id(db, job_id)
+    if job is None:
+        return None
+    job.status = status
+    job.updated_at = __import__("datetime").datetime.utcnow()
+    if result is not None:
+        job.result_json = result
+    if error is not None:
+        job.error_text = error
+    await db.flush()
+    logger.debug("crud.job.updated", extra={"job_id": job_id, "status": status})
+    return job
+
+
+async def get_job_by_id(db: AsyncSession, job_id: str) -> BackgroundJob | None:
+    """Fetch a background job by its ID."""
+    result = await db.execute(select(BackgroundJob).where(BackgroundJob.id == job_id))
+    return result.scalar_one_or_none()
+
+
+async def list_recent_jobs(
+    db: AsyncSession,
+    limit: int = 50,
+    job_type: str | None = None,
+) -> list[BackgroundJob]:
+    """Return the most recently created jobs, newest first."""
+    query = select(BackgroundJob).order_by(BackgroundJob.created_at.desc()).limit(limit)
+    if job_type:
+        query = query.where(BackgroundJob.job_type == job_type)
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
 
 async def create_event(
     db: AsyncSession,

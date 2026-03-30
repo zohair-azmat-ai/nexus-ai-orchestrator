@@ -16,3 +16,4 @@ class IngestResponse(BaseModel):
     document_id: str
     chunks_created: int
     collection_name: str
+    job_id: str | None = None

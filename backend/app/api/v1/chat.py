@@ -12,6 +12,8 @@ from app.services.events.types import EVENT_CHAT_RECEIVED, EVENT_CHAT_COMPLETED,
 from app.services.memory.rules import memory_rules
 from app.services.memory.summarizer import conversation_summarizer
 from app.services.orchestrator.engine import run_pipeline
+from app.services.jobs.manager import job_manager
+from app.services.jobs.types import JOB_TYPE_MEMORY_SUMMARY
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -102,29 +104,50 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
 
     # ── Trigger summary update if threshold reached ───────────────────────────
     if memory_rules.should_summarize(messages_count):
-        try:
-            recent = await crud.list_recent_messages(
-                db, conversation.id, limit=messages_count
-            )
-            history = [{"role": m.role, "content": m.content} for m in recent]
-            summary_text = await conversation_summarizer.summarize(history)
-            await crud.upsert_conversation_summary(
-                db,
-                conversation_id=conversation.id,
-                user_id=request.user_id,
-                summary_text=summary_text,
-                source_message_count=messages_count,
-            )
-            await db.commit()
-            logger.info(
-                "chat.summary.updated",
-                extra={"conversation_id": conversation.id, "message_count": messages_count},
-            )
-        except Exception as exc:
-            logger.warning(
-                "chat.summary.failed",
-                extra={"error": str(exc), "conversation_id": conversation.id},
-            )
+        from app.core.config import settings as _settings
+        if _settings.enable_async_memory_summary:
+            # Queue as a background job — returns quickly, summary generated async
+            try:
+                await job_manager.submit(
+                    db,
+                    JOB_TYPE_MEMORY_SUMMARY,
+                    {"conversation_id": conversation.id, "user_id": request.user_id},
+                )
+                await db.commit()
+                logger.info(
+                    "chat.summary.queued",
+                    extra={"conversation_id": conversation.id},
+                )
+            except Exception as exc:
+                logger.warning(
+                    "chat.summary.queue_failed",
+                    extra={"error": str(exc), "conversation_id": conversation.id},
+                )
+        else:
+            # Inline (default) — existing synchronous path
+            try:
+                recent = await crud.list_recent_messages(
+                    db, conversation.id, limit=messages_count
+                )
+                history = [{"role": m.role, "content": m.content} for m in recent]
+                summary_text = await conversation_summarizer.summarize(history)
+                await crud.upsert_conversation_summary(
+                    db,
+                    conversation_id=conversation.id,
+                    user_id=request.user_id,
+                    summary_text=summary_text,
+                    source_message_count=messages_count,
+                )
+                await db.commit()
+                logger.info(
+                    "chat.summary.updated",
+                    extra={"conversation_id": conversation.id, "message_count": messages_count},
+                )
+            except Exception as exc:
+                logger.warning(
+                    "chat.summary.failed",
+                    extra={"error": str(exc), "conversation_id": conversation.id},
+                )
 
     event_logger.emit(
         EVENT_CHAT_COMPLETED,
@@ -142,6 +165,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         retrieval_used=pipeline_response.retrieval_used,
         retrieval_result_count=pipeline_response.retrieval_result_count,
         confidence=pipeline_response.confidence,
+        tools_used=pipeline_response.tools_used,
         conversation_id=conversation.id,
         messages_count=messages_count,
         event_summary=pipeline_response.event_summary,

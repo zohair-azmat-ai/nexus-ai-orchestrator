@@ -1,5 +1,5 @@
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -40,9 +40,28 @@ class Settings(BaseSettings):
     memory_recent_message_limit: int = Field(default=5)
     memory_enable_llm_summarization: bool = Field(default=True)
 
+    # Background Jobs
+    jobs_inline_mode: bool = Field(default=True, description="Run jobs synchronously inline (set False for true async)")
+    jobs_max_concurrency: int = Field(default=10, description="Max concurrent background jobs (async mode)")
+    enable_async_memory_summary: bool = Field(default=False, description="Queue memory summary as a background job")
+    enable_async_ingest: bool = Field(default=False, description="Queue document ingestion as a background job")
+
     # Logging
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def normalize_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "prod", "production"}:
+                return False
+        return value
 
 
 settings = Settings()

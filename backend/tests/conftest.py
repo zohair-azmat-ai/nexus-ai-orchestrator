@@ -31,11 +31,19 @@ async def override_db():
         async with TestSession() as session:
             yield session
 
+    import app.db.postgres as postgres_module
+
+    original_engine = postgres_module._engine
+    original_session_local = postgres_module._session_local
+    postgres_module._engine = engine
+    postgres_module._session_local = TestSession
     app.dependency_overrides[get_db] = _get_test_db
 
     yield
 
     app.dependency_overrides.pop(get_db, None)
+    postgres_module._engine = original_engine
+    postgres_module._session_local = original_session_local
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
