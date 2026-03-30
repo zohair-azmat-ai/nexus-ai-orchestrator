@@ -49,3 +49,15 @@ async def override_db():
         await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def reset_observability_state():
+    from app.services.analytics import aggregator
+    from app.services.observability import reset as reset_traces
+
+    aggregator.reset()
+    reset_traces()
+    yield
+    aggregator.reset()
+    reset_traces()

@@ -16,11 +16,13 @@ Each stage receives and mutates a shared OrchestratorContext dict.
 import time
 from typing import Any
 
-from app.core.ids import get_correlation_id
+from app.core.ids import get_correlation_id, get_trace_id
 from app.core.logger import get_logger
 from app.core.telemetry import record_latency, record_event
 from app.schemas.chat import ChatRequest
 from app.schemas.pipeline import PipelineResult
+from app.services.events import logger as event_logger
+from app.services.events.types import EVENT_STAGE_COMPLETED, EVENT_STAGE_FAILED, EVENT_STAGE_STARTED
 from app.services.orchestrator.stages import (
     intake_stage,
     memory_stage,
@@ -44,10 +46,12 @@ async def run_pipeline(
     """Execute the full orchestration pipeline and return a ChatResponse."""
 
     correlation_id = get_correlation_id()
+    trace_id = get_trace_id() or correlation_id
     start = time.monotonic()
 
     ctx: OrchestratorContext = {
         "correlation_id": correlation_id,
+        "trace_id": trace_id,
         "request": request,
         "db": db,
         "conversation_id": conversation_id,
@@ -62,6 +66,8 @@ async def run_pipeline(
         "escalated": False,
         "events": [],
         "agent_result": None,
+        "tools_used": [],
+        "stage_timings": {},
     }
 
     pipeline = [
@@ -76,24 +82,54 @@ async def run_pipeline(
 
     for stage in pipeline:
         stage_name = stage.__name__
+        stage_key = stage_name.removesuffix("_stage")
+        stage_start = time.monotonic()
         logger.info(f"orchestrator.stage.start", extra={"stage": stage_name, "correlation_id": correlation_id})
+        event_logger.emit(
+            EVENT_STAGE_STARTED,
+            stage=stage_key,
+            component="orchestrator",
+            status="success",
+        )
         try:
             ctx = await stage(ctx)
         except Exception as exc:
+            stage_duration_ms = (time.monotonic() - stage_start) * 1000
+            ctx["stage_timings"][stage_key] = round(stage_duration_ms, 2)
             logger.error(
                 f"orchestrator.stage.error",
                 extra={"stage": stage_name, "error": str(exc), "correlation_id": correlation_id},
             )
+            event_logger.emit(
+                EVENT_STAGE_FAILED,
+                stage=stage_key,
+                component="orchestrator",
+                status="fail",
+                latency_ms=round(stage_duration_ms, 2),
+                error=str(exc),
+            )
             ctx["answer"] = ctx.get("answer") or "I encountered an error processing your request."
             break
+        stage_duration_ms = (time.monotonic() - stage_start) * 1000
+        ctx["stage_timings"][stage_key] = round(stage_duration_ms, 2)
+        event_logger.emit(
+            EVENT_STAGE_COMPLETED,
+            stage=stage_key,
+            component="orchestrator",
+            status="success",
+            latency_ms=round(stage_duration_ms, 2),
+        )
         logger.info(f"orchestrator.stage.done", extra={"stage": stage_name, "correlation_id": correlation_id})
 
     duration_ms = (time.monotonic() - start) * 1000
     record_latency("orchestrator.pipeline", duration_ms)
     record_event("orchestrator.complete", correlation_id=correlation_id, agent=ctx["selected_agent"])
 
+    tools_used = ctx.get("tools_used", [])
+
     return PipelineResult(
         correlation_id=correlation_id,
+        trace_id=trace_id,
         answer=ctx["answer"],
         selected_agent=ctx["selected_agent"],
         memory_used=ctx["memory_used"],
@@ -101,12 +137,17 @@ async def run_pipeline(
         retrieval_context=ctx.get("retrieval_context", ""),
         retrieval_result_count=len(ctx.get("retrieval_results", [])),
         confidence=ctx.get("confidence", 0.0),
+        tools_used=tools_used,
+        stage_timings=ctx.get("stage_timings", {}),
         event_summary={
             "stage_events": ctx["events"],
+            "stage_timings": ctx.get("stage_timings", {}),
             "escalated": ctx["escalated"],
             "duration_ms": round(duration_ms, 2),
             "retrieval_results": len(ctx.get("retrieval_results", [])),
             "agent": ctx["selected_agent"],
             "confidence": ctx.get("confidence", 0.0),
+            "tools_used": tools_used,
+            "trace_id": trace_id,
         },
     )

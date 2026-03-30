@@ -16,3 +16,13 @@ def get_correlation_id() -> str:
 
 def set_correlation_id(value: str) -> None:
     _correlation_id_var.set(value)
+
+
+def get_trace_id() -> str:
+    """Trace ID currently reuses the request correlation ID."""
+    return get_correlation_id()
+
+
+def set_trace_id(value: str) -> None:
+    """Trace ID currently reuses the request correlation ID."""
+    set_correlation_id(value)

@@ -1,15 +1,17 @@
 from contextlib import asynccontextmanager
+import time
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import health, chat, ingest, memory, observability, jobs
 from app.core.config import settings
-from app.core.ids import generate_id, set_correlation_id
+from app.core.ids import generate_id, set_correlation_id, set_trace_id
 from app.core.logger import get_logger, set_log_context, clear_log_context
 from app.db.postgres import create_all_tables
+from app.services.analytics.aggregator import record_request
 from app.services.events import logger as event_logger
-from app.services.events.types import EVENT_STARTUP, EVENT_SHUTDOWN
+from app.services.events.types import EVENT_API_REQUEST_COMPLETED, EVENT_API_REQUEST_FAILED, EVENT_API_REQUEST_STARTED, EVENT_STARTUP, EVENT_SHUTDOWN
 
 logger = get_logger(__name__)
 
@@ -63,11 +65,45 @@ async def correlation_id_middleware(request: Request, call_next) -> Response:
     """
     correlation_id = request.headers.get(CORRELATION_ID_HEADER) or generate_id()
     set_correlation_id(correlation_id)
+    set_trace_id(correlation_id)
     set_log_context(correlation_id=correlation_id)
+    record_request()
+    start = time.monotonic()
+    event_logger.emit(
+        EVENT_API_REQUEST_STARTED,
+        stage="api",
+        component=request.url.path,
+        status="success",
+        method=request.method,
+    )
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = (time.monotonic() - start) * 1000
+        event_logger.emit(
+            EVENT_API_REQUEST_FAILED,
+            stage="api",
+            component=request.url.path,
+            status="fail",
+            method=request.method,
+            latency_ms=round(duration_ms, 2),
+        )
+        clear_log_context()
+        raise
 
     response.headers[CORRELATION_ID_HEADER] = correlation_id
+    response.headers["X-Trace-ID"] = correlation_id
+    duration_ms = (time.monotonic() - start) * 1000
+    event_logger.emit(
+        EVENT_API_REQUEST_COMPLETED,
+        stage="api",
+        component=request.url.path,
+        status="success",
+        method=request.method,
+        status_code=response.status_code,
+        latency_ms=round(duration_ms, 2),
+    )
     clear_log_context()
     return response
 

@@ -20,12 +20,15 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     correlation_id: str
+    trace_id: str | None = None
     answer: str
     selected_agent: str
     memory_used: bool
     retrieval_used: bool
     retrieval_result_count: int = 0
     confidence: float = 0.0
+    tools_used: list[str] = Field(default_factory=list)
+    stage_timings: dict[str, float] = Field(default_factory=dict)
     conversation_id: str
     messages_count: int
     event_summary: dict[str, Any] = Field(default_factory=dict)

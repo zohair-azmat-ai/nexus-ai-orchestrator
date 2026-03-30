@@ -165,10 +165,12 @@ async def create_job(
     db: AsyncSession,
     job_type: str,
     payload: dict[str, Any],
+    trace_id: str | None = None,
 ) -> BackgroundJob:
     """Persist a new background job record in 'queued' status."""
     job = BackgroundJob(
         id=str(uuid.uuid4()),
+        trace_id=trace_id,
         job_type=job_type,
         status="queued",
         payload_json=payload,

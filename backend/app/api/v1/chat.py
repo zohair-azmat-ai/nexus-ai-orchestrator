@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.ids import get_correlation_id
+from app.core.ids import get_correlation_id, get_trace_id
 from app.core.logger import get_logger
 from app.db import crud
 from app.db.postgres import get_db
@@ -38,6 +38,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
     6. Return response with conversation_id and message count
     """
     correlation_id = get_correlation_id()
+    trace_id = get_trace_id() or correlation_id
     logger.info(
         "chat.request",
         extra={
@@ -49,7 +50,14 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         },
     )
 
-    event_logger.emit(EVENT_CHAT_RECEIVED, user_id=request.user_id, session_id=request.session_id)
+    event_logger.emit(
+        EVENT_CHAT_RECEIVED,
+        stage="intake",
+        component="chat",
+        status="success",
+        user_id=request.user_id,
+        session_id=request.session_id,
+    )
 
     # ── Resolve conversation ──────────────────────────────────────────────────
     conversation = await crud.get_or_create_conversation(db, request.user_id, request.conversation_id)
@@ -71,7 +79,13 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
     except Exception as exc:
         await db.rollback()
         logger.error("chat.error", extra={"error": str(exc), "correlation_id": correlation_id})
-        event_logger.emit(EVENT_CHAT_FAILED, error=str(exc))
+        event_logger.emit(
+            EVENT_CHAT_FAILED,
+            stage="response",
+            component="chat",
+            status="fail",
+            error=str(exc),
+        )
         raise HTTPException(status_code=500, detail=str(exc))
 
     # ── Persist assistant response ────────────────────────────────────────────
@@ -89,12 +103,14 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         correlation_id=correlation_id,
         event_type=EVENT_CHAT_COMPLETED,
         payload={
+            "trace_id": trace_id,
             "user_id": request.user_id,
             "session_id": request.session_id,
             "conversation_id": conversation.id,
             "agent": pipeline_response.selected_agent,
             "memory_used": pipeline_response.memory_used,
             "retrieval_used": pipeline_response.retrieval_used,
+            "stage_timings": pipeline_response.stage_timings,
         },
     )
 
@@ -151,14 +167,19 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
 
     event_logger.emit(
         EVENT_CHAT_COMPLETED,
+        stage="response",
+        component="chat",
+        status="success",
         agent=pipeline_response.selected_agent,
         memory_used=pipeline_response.memory_used,
         retrieval_used=pipeline_response.retrieval_used,
         conversation_id=conversation.id,
+        stage_timings=pipeline_response.stage_timings,
     )
 
     return ChatResponse(
         correlation_id=pipeline_response.correlation_id,
+        trace_id=pipeline_response.trace_id,
         answer=pipeline_response.answer,
         selected_agent=pipeline_response.selected_agent,
         memory_used=pipeline_response.memory_used,
@@ -166,6 +187,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         retrieval_result_count=pipeline_response.retrieval_result_count,
         confidence=pipeline_response.confidence,
         tools_used=pipeline_response.tools_used,
+        stage_timings=pipeline_response.stage_timings,
         conversation_id=conversation.id,
         messages_count=messages_count,
         event_summary=pipeline_response.event_summary,

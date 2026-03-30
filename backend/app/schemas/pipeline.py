@@ -1,9 +1,9 @@
 """
-Internal pipeline result — returned by the orchestrator engine.
+Internal pipeline result returned by the orchestrator engine.
 
 This is NOT an API schema. It carries only what the orchestration pipeline
-produces. The chat route enriches it with DB-layer fields
-(conversation_id, messages_count) before returning the public ChatResponse.
+produces. The chat route enriches it with DB-layer fields before returning the
+public ChatResponse.
 """
 
 from dataclasses import dataclass, field
@@ -13,11 +13,14 @@ from typing import Any
 @dataclass
 class PipelineResult:
     correlation_id: str
+    trace_id: str
     answer: str
     selected_agent: str
     memory_used: bool
     retrieval_used: bool
-    retrieval_context: str = ""          # formatted context block (not exposed in answer)
-    retrieval_result_count: int = 0      # how many chunks were retrieved
-    confidence: float = 0.0              # agent confidence score (0.0 – 1.0)
+    retrieval_context: str = ""
+    retrieval_result_count: int = 0
+    confidence: float = 0.0
+    tools_used: list[str] = field(default_factory=list)
+    stage_timings: dict[str, float] = field(default_factory=dict)
     event_summary: dict[str, Any] = field(default_factory=dict)

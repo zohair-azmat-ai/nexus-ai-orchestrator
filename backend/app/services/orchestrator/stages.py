@@ -1,20 +1,19 @@
 """
 Individual pipeline stage functions.
 
-Each stage receives and returns the OrchestratorContext dict.
-Stages are kept thin — they delegate to the appropriate service layer.
+Each stage receives and returns the shared orchestrator context dict.
 """
 
+import time
 from typing import Any
 
 from app.core.logger import get_logger
+from app.services.events import logger as event_logger
+from app.services.events.types import EVENT_AGENT_EXECUTED, EVENT_AGENT_SELECTED
 
 logger = get_logger(__name__)
 
 OrchestratorContext = dict[str, Any]
-
-# ─── Keyword sets for deterministic triage ───────────────────────────────────
-# Listed in priority order: escalation checked first, support last.
 
 _ESCALATION_KW = {
     "escalate", "urgent", "critical", "human", "angry", "legal", "refund",
@@ -41,18 +40,18 @@ def _matches(message: str, keywords: set[str]) -> bool:
     return any(kw in message for kw in keywords)
 
 
-# ─── Pipeline stages ──────────────────────────────────────────────────────────
+def _append_stage_event(ctx: OrchestratorContext, stage: str, **payload: Any) -> None:
+    ctx["events"].append({"stage": stage, **payload})
+
 
 async def intake_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Validate, normalize, and enrich the incoming request."""
     request = ctx["request"]
-    ctx["events"].append({"stage": "intake", "user_id": request.user_id, "session_id": request.session_id})
+    _append_stage_event(ctx, "intake", user_id=request.user_id, session_id=request.session_id)
     logger.info("intake.processed", extra={"user_id": request.user_id, "session_id": request.session_id})
     return ctx
 
 
 async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Load conversation history and user context from the DB memory layer."""
     from app.services.memory.manager import memory_manager
 
     request = ctx["request"]
@@ -73,25 +72,19 @@ async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             ctx["memory"] = {"history": request.history, "summary": None}
             ctx["memory_used"] = bool(request.history)
     else:
-        # Fallback: use request history when no DB session available
         ctx["memory"] = {"history": request.history, "summary": None}
         ctx["memory_used"] = bool(request.history)
 
-    ctx["events"].append({
-        "stage": "memory",
-        "memory_used": ctx["memory_used"],
-        "memory_source": ctx["memory"].get("memory_source", "request"),
-    })
+    _append_stage_event(
+        ctx,
+        "memory",
+        memory_used=ctx["memory_used"],
+        memory_source=ctx["memory"].get("memory_source", "request"),
+    )
     return ctx
 
 
 async def retrieval_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """
-    Perform semantic retrieval from the vector store.
-
-    On success, populates ctx["retrieval_results"] and ctx["retrieval_context"].
-    On any failure (Qdrant down, missing API key), degrades gracefully to empty.
-    """
     from app.services.retrieval.search import semantic_search
 
     message = ctx["request"].message
@@ -107,25 +100,20 @@ async def retrieval_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
     ctx["retrieval_results"] = results
     ctx["retrieval_used"] = len(results) > 0
-    ctx["retrieval_context"] = (
-        semantic_search.format_context(results) if results else ""
-    )
+    ctx["retrieval_context"] = semantic_search.format_context(results) if results else ""
 
-    ctx["events"].append({
-        "stage": "retrieval",
-        "results": len(results),
-        "retrieval_used": ctx["retrieval_used"],
-    })
+    _append_stage_event(
+        ctx,
+        "retrieval",
+        results=len(results),
+        retrieval_used=ctx["retrieval_used"],
+    )
     return ctx
 
 
 async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Select the most appropriate agent for this request."""
     message = ctx["request"].message.lower()
 
-    # Priority: escalation > summarizer > planner > research > support
-    # Planner checked before research because "what is the roadmap?" should
-    # route to planner, not research (specific plan terms win over general query words).
     if _matches(message, _ESCALATION_KW):
         ctx["selected_agent"] = "escalation"
     elif _matches(message, _SUMMARIZER_KW):
@@ -137,7 +125,7 @@ async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     else:
         ctx["selected_agent"] = "support"
 
-    ctx["events"].append({"stage": "triage", "agent": ctx["selected_agent"]})
+    _append_stage_event(ctx, "triage", agent=ctx["selected_agent"])
     logger.info(
         "agent.selected",
         extra={
@@ -146,11 +134,17 @@ async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "user_id": ctx["request"].user_id,
         },
     )
+    event_logger.emit(
+        EVENT_AGENT_SELECTED,
+        stage="agent",
+        component=ctx["selected_agent"],
+        status="success",
+        user_id=ctx["request"].user_id,
+    )
     return ctx
 
 
 async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Dispatch to the selected agent and populate ctx['answer']."""
     from app.services.agents import AGENT_REGISTRY
 
     agent_name = ctx["selected_agent"]
@@ -163,20 +157,24 @@ async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
         )
         ctx["answer"] = "I encountered an internal error selecting the appropriate agent."
         ctx["confidence"] = 0.0
-        ctx["events"].append({"stage": "response", "agent": agent_name, "error": "unknown agent"})
+        _append_stage_event(ctx, "response", agent=agent_name, error="unknown agent")
         return ctx
 
+    start = time.monotonic()
     ctx = await agent.run(ctx)
+    latency_ms = (time.monotonic() - start) * 1000
 
     agent_result = ctx.get("agent_result")
     ctx["confidence"] = agent_result.confidence if agent_result else 0.0
 
-    ctx["events"].append({
-        "stage": "response",
-        "agent": agent_name,
-        "answer_length": len(ctx.get("answer", "")),
-        "confidence": ctx["confidence"],
-    })
+    _append_stage_event(
+        ctx,
+        "response",
+        agent=agent_name,
+        answer_length=len(ctx.get("answer", "")),
+        confidence=ctx["confidence"],
+        latency_ms=round(latency_ms, 2),
+    )
     logger.info(
         "agent.executed",
         extra={
@@ -185,17 +183,26 @@ async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "correlation_id": ctx.get("correlation_id", ""),
         },
     )
+    event_logger.emit(
+        EVENT_AGENT_EXECUTED,
+        stage="agent",
+        component=agent_name,
+        status="success",
+        latency_ms=round(latency_ms, 2),
+        confidence=ctx["confidence"],
+        used_memory=bool(agent_result.used_memory) if agent_result else False,
+        used_retrieval=bool(agent_result.used_retrieval) if agent_result else False,
+    )
     return ctx
 
 
 async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Apply escalation rules — respects agent escalation_required flag."""
     agent_result = ctx.get("agent_result")
     agent_requires_escalation = agent_result is not None and agent_result.escalation_required
 
     if ctx["selected_agent"] == "escalation" or agent_requires_escalation:
         ctx["escalated"] = True
-        ctx["events"].append({"stage": "escalation", "escalated": True})
+        _append_stage_event(ctx, "escalation", escalated=True)
         logger.info(
             "escalation.triggered",
             extra={
@@ -208,11 +215,11 @@ async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 
 async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Persist a structured event record for this request."""
     logger.info(
         "event.log",
         extra={
             "correlation_id": ctx["correlation_id"],
+            "trace_id": ctx.get("trace_id", ctx["correlation_id"]),
             "user_id": ctx["request"].user_id,
             "agent": ctx["selected_agent"],
             "confidence": ctx.get("confidence", 0.0),
@@ -220,7 +227,9 @@ async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "retrieval_used": ctx["retrieval_used"],
             "retrieval_results": len(ctx.get("retrieval_results", [])),
             "escalated": ctx["escalated"],
+            "tools_used": ctx.get("tools_used", []),
             "event_count": len(ctx["events"]),
+            "stage_timings": ctx.get("stage_timings", {}),
         },
     )
     return ctx

@@ -24,6 +24,7 @@ class BackgroundJob(Base):
     __tablename__ = "background_jobs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    trace_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     job_type: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued", index=True)
     payload_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
