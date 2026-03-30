@@ -16,6 +16,9 @@ class PipelineResult:
     trace_id: str
     answer: str
     selected_agent: str
+    execution_mode: str
+    executed_steps_count: int
+    final_agent: str
     memory_used: bool
     retrieval_used: bool
     retrieval_context: str = ""
@@ -23,4 +26,5 @@ class PipelineResult:
     confidence: float = 0.0
     tools_used: list[str] = field(default_factory=list)
     stage_timings: dict[str, float] = field(default_factory=dict)
+    execution_plan_summary: dict[str, Any] | None = None
     event_summary: dict[str, Any] = field(default_factory=dict)

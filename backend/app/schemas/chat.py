@@ -23,12 +23,16 @@ class ChatResponse(BaseModel):
     trace_id: str | None = None
     answer: str
     selected_agent: str
+    execution_mode: str = "single_step"
+    executed_steps_count: int = 1
+    final_agent: str = ""
     memory_used: bool
     retrieval_used: bool
     retrieval_result_count: int = 0
     confidence: float = 0.0
     tools_used: list[str] = Field(default_factory=list)
     stage_timings: dict[str, float] = Field(default_factory=dict)
+    execution_plan_summary: dict[str, Any] | None = None
     conversation_id: str
     messages_count: int
     event_summary: dict[str, Any] = Field(default_factory=dict)
