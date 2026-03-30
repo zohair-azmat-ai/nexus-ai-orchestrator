@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.conversation import Conversation, Message
 from app.db.models.event import EventLog
+from app.db.models.summary import ConversationSummary
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -95,6 +96,64 @@ async def count_messages(db: AsyncSession, conversation_id: str) -> int:
         select(func.count()).where(Message.conversation_id == conversation_id)
     )
     return result.scalar_one()
+
+
+# ─── Events ───────────────────────────────────────────────────────────────────
+
+# ─── Summaries ────────────────────────────────────────────────────────────────
+
+async def get_latest_conversation_summary(
+    db: AsyncSession, conversation_id: str
+) -> ConversationSummary | None:
+    """Fetch the summary row for a conversation, if it exists."""
+    result = await db.execute(
+        select(ConversationSummary).where(ConversationSummary.conversation_id == conversation_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_conversation_summary(
+    db: AsyncSession,
+    conversation_id: str,
+    user_id: str,
+    summary_text: str,
+    source_message_count: int,
+) -> ConversationSummary:
+    """Insert or update the summary for a conversation."""
+    existing = await get_latest_conversation_summary(db, conversation_id)
+    if existing:
+        existing.summary_text = summary_text
+        existing.source_message_count = source_message_count
+        existing.summary_version = existing.summary_version + 1
+        existing.updated_at = __import__("datetime").datetime.utcnow()
+        await db.flush()
+        logger.debug("crud.summary.updated", extra={"conversation_id": conversation_id})
+        return existing
+    summary = ConversationSummary(
+        id=str(uuid.uuid4()),
+        conversation_id=conversation_id,
+        user_id=user_id,
+        summary_text=summary_text,
+        source_message_count=source_message_count,
+        summary_version=1,
+    )
+    db.add(summary)
+    await db.flush()
+    logger.debug("crud.summary.created", extra={"conversation_id": conversation_id})
+    return summary
+
+
+async def list_recent_messages(
+    db: AsyncSession, conversation_id: str, limit: int
+) -> list[Message]:
+    """Return the most recent N messages for a conversation, oldest-first."""
+    result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+    )
+    return list(reversed(result.scalars().all()))
 
 
 # ─── Events ───────────────────────────────────────────────────────────────────

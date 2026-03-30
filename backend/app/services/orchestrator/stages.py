@@ -13,6 +13,35 @@ logger = get_logger(__name__)
 
 OrchestratorContext = dict[str, Any]
 
+# ─── Keyword sets for deterministic triage ───────────────────────────────────
+# Listed in priority order: escalation checked first, support last.
+
+_ESCALATION_KW = {
+    "escalate", "urgent", "critical", "human", "angry", "legal", "refund",
+    "security", "frustrated", "sue", "lawyer", "complaint", "unacceptable",
+    "fraud", "breach", "manager",
+}
+_SUMMARIZER_KW = {
+    "summarize", "summary", "tldr", "tl;dr", "brief", "shorten",
+    "recap", "condense", "overview",
+}
+_RESEARCH_KW = {
+    "research", "explain", "analyze", "compare", "what is", "why",
+    "how does", "tell me about", "describe", "find out", "look up",
+    "investigate", "explore",
+}
+_PLANNER_KW = {
+    "plan", "roadmap", "steps", "how to", "strategy", "build",
+    "implement", "design", "schedule", "milestone", "create a",
+    "set up", "architecture",
+}
+
+
+def _matches(message: str, keywords: set[str]) -> bool:
+    return any(kw in message for kw in keywords)
+
+
+# ─── Pipeline stages ──────────────────────────────────────────────────────────
 
 async def intake_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Validate, normalize, and enrich the incoming request."""
@@ -23,15 +52,36 @@ async def intake_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
 
 async def memory_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Load conversation history and user context from the memory layer."""
+    """Load conversation history and user context from the DB memory layer."""
+    from app.services.memory.manager import memory_manager
+
     request = ctx["request"]
-    ctx["memory"] = {
-        "history": request.history,
-        "summary": None,
-    }
-    if request.history:
-        ctx["memory_used"] = True
-    ctx["events"].append({"stage": "memory", "history_turns": len(request.history)})
+    db = ctx.get("db")
+    conversation_id = ctx.get("conversation_id")
+
+    if db and conversation_id:
+        try:
+            mem = await memory_manager.load(
+                db=db,
+                conversation_id=conversation_id,
+                user_id=request.user_id,
+            )
+            ctx["memory"] = mem
+            ctx["memory_used"] = mem["memory_used"]
+        except Exception as exc:
+            logger.warning("memory_stage.failed", extra={"error": str(exc)})
+            ctx["memory"] = {"history": request.history, "summary": None}
+            ctx["memory_used"] = bool(request.history)
+    else:
+        # Fallback: use request history when no DB session available
+        ctx["memory"] = {"history": request.history, "summary": None}
+        ctx["memory_used"] = bool(request.history)
+
+    ctx["events"].append({
+        "stage": "memory",
+        "memory_used": ctx["memory_used"],
+        "memory_source": ctx["memory"].get("memory_source", "request"),
+    })
     return ctx
 
 
@@ -73,50 +123,87 @@ async def triage_stage(ctx: OrchestratorContext) -> OrchestratorContext:
     """Select the most appropriate agent for this request."""
     message = ctx["request"].message.lower()
 
-    if any(kw in message for kw in ["escalate", "urgent", "critical", "human"]):
+    # Priority: escalation > summarizer > planner > research > support
+    # Planner checked before research because "what is the roadmap?" should
+    # route to planner, not research (specific plan terms win over general query words).
+    if _matches(message, _ESCALATION_KW):
         ctx["selected_agent"] = "escalation"
-    elif any(kw in message for kw in ["summarize", "summary", "tldr"]):
+    elif _matches(message, _SUMMARIZER_KW):
         ctx["selected_agent"] = "summarizer"
-    elif any(kw in message for kw in ["research", "find", "search", "what is"]):
-        ctx["selected_agent"] = "research"
-    elif any(kw in message for kw in ["plan", "roadmap", "steps", "how to"]):
+    elif _matches(message, _PLANNER_KW):
         ctx["selected_agent"] = "planner"
+    elif _matches(message, _RESEARCH_KW):
+        ctx["selected_agent"] = "research"
     else:
         ctx["selected_agent"] = "support"
 
     ctx["events"].append({"stage": "triage", "agent": ctx["selected_agent"]})
+    logger.info(
+        "agent.selected",
+        extra={
+            "agent": ctx["selected_agent"],
+            "correlation_id": ctx.get("correlation_id", ""),
+            "user_id": ctx["request"].user_id,
+        },
+    )
     return ctx
 
 
 async def response_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Generate the final answer using the selected agent."""
-    # Phase 3: delegate to real agent.run(ctx) with LLM call.
-    agent = ctx["selected_agent"]
-    message = ctx["request"].message
-    retrieval_context = ctx.get("retrieval_context", "")
+    """Dispatch to the selected agent and populate ctx['answer']."""
+    from app.services.agents import AGENT_REGISTRY
 
-    if retrieval_context:
-        ctx["answer"] = (
-            f"[{agent.upper()} AGENT] I found relevant context for your query.\n\n"
-            f"{retrieval_context}\n\n"
-            f"Phase 3 will generate a refined LLM response using this context."
-        )
-    else:
-        ctx["answer"] = (
-            f"[{agent.upper()} AGENT] Nexus AI received your message: \"{message}\". "
-            "LLM integration is enabled in Phase 3. "
-            "This is a Phase 2 scaffold response."
-        )
+    agent_name = ctx["selected_agent"]
+    agent = AGENT_REGISTRY.get(agent_name)
 
-    ctx["events"].append({"stage": "response", "agent": agent, "answer_length": len(ctx["answer"])})
+    if agent is None:
+        logger.error(
+            "response_stage.unknown_agent",
+            extra={"agent": agent_name, "correlation_id": ctx.get("correlation_id", "")},
+        )
+        ctx["answer"] = "I encountered an internal error selecting the appropriate agent."
+        ctx["confidence"] = 0.0
+        ctx["events"].append({"stage": "response", "agent": agent_name, "error": "unknown agent"})
+        return ctx
+
+    ctx = await agent.run(ctx)
+
+    agent_result = ctx.get("agent_result")
+    ctx["confidence"] = agent_result.confidence if agent_result else 0.0
+
+    ctx["events"].append({
+        "stage": "response",
+        "agent": agent_name,
+        "answer_length": len(ctx.get("answer", "")),
+        "confidence": ctx["confidence"],
+    })
+    logger.info(
+        "agent.executed",
+        extra={
+            "agent": agent_name,
+            "confidence": ctx["confidence"],
+            "correlation_id": ctx.get("correlation_id", ""),
+        },
+    )
     return ctx
 
 
 async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
-    """Apply escalation rules if required."""
-    if ctx["selected_agent"] == "escalation":
+    """Apply escalation rules — respects agent escalation_required flag."""
+    agent_result = ctx.get("agent_result")
+    agent_requires_escalation = agent_result is not None and agent_result.escalation_required
+
+    if ctx["selected_agent"] == "escalation" or agent_requires_escalation:
         ctx["escalated"] = True
         ctx["events"].append({"stage": "escalation", "escalated": True})
+        logger.info(
+            "escalation.triggered",
+            extra={
+                "agent": ctx["selected_agent"],
+                "correlation_id": ctx.get("correlation_id", ""),
+                "user_id": ctx["request"].user_id,
+            },
+        )
     return ctx
 
 
@@ -128,6 +215,7 @@ async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "correlation_id": ctx["correlation_id"],
             "user_id": ctx["request"].user_id,
             "agent": ctx["selected_agent"],
+            "confidence": ctx.get("confidence", 0.0),
             "memory_used": ctx["memory_used"],
             "retrieval_used": ctx["retrieval_used"],
             "retrieval_results": len(ctx.get("retrieval_results", [])),

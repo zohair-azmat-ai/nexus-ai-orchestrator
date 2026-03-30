@@ -25,6 +25,7 @@ class ChatResponse(BaseModel):
     memory_used: bool
     retrieval_used: bool
     retrieval_result_count: int = 0
+    confidence: float = 0.0
     conversation_id: str
     messages_count: int
     event_summary: dict[str, Any] = Field(default_factory=dict)

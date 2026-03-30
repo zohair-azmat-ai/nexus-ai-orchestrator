@@ -19,4 +19,5 @@ class PipelineResult:
     retrieval_used: bool
     retrieval_context: str = ""          # formatted context block (not exposed in answer)
     retrieval_result_count: int = 0      # how many chunks were retrieved
+    confidence: float = 0.0              # agent confidence score (0.0 – 1.0)
     event_summary: dict[str, Any] = field(default_factory=dict)

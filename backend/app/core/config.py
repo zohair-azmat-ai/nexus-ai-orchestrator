@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     rag_top_k: int = Field(default=5)
     rag_min_score: float = Field(default=0.4)
 
+    # Memory
+    memory_summary_trigger_count: int = Field(default=10)
+    memory_recent_message_limit: int = Field(default=5)
+    memory_enable_llm_summarization: bool = Field(default=True)
+
     # Logging
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")

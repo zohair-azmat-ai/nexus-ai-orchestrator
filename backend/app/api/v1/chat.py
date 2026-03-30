@@ -9,6 +9,8 @@ from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.common import ErrorResponse
 from app.services.events import logger as event_logger
 from app.services.events.types import EVENT_CHAT_RECEIVED, EVENT_CHAT_COMPLETED, EVENT_CHAT_FAILED
+from app.services.memory.rules import memory_rules
+from app.services.memory.summarizer import conversation_summarizer
 from app.services.orchestrator.engine import run_pipeline
 
 router = APIRouter()
@@ -61,7 +63,9 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
 
     # ── Orchestrator ──────────────────────────────────────────────────────────
     try:
-        pipeline_response = await run_pipeline(request)
+        pipeline_response = await run_pipeline(
+            request, db=db, conversation_id=conversation.id
+        )
     except Exception as exc:
         await db.rollback()
         logger.error("chat.error", extra={"error": str(exc), "correlation_id": correlation_id})
@@ -96,6 +100,32 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
 
     messages_count = await crud.count_messages(db, conversation.id)
 
+    # ── Trigger summary update if threshold reached ───────────────────────────
+    if memory_rules.should_summarize(messages_count):
+        try:
+            recent = await crud.list_recent_messages(
+                db, conversation.id, limit=messages_count
+            )
+            history = [{"role": m.role, "content": m.content} for m in recent]
+            summary_text = await conversation_summarizer.summarize(history)
+            await crud.upsert_conversation_summary(
+                db,
+                conversation_id=conversation.id,
+                user_id=request.user_id,
+                summary_text=summary_text,
+                source_message_count=messages_count,
+            )
+            await db.commit()
+            logger.info(
+                "chat.summary.updated",
+                extra={"conversation_id": conversation.id, "message_count": messages_count},
+            )
+        except Exception as exc:
+            logger.warning(
+                "chat.summary.failed",
+                extra={"error": str(exc), "conversation_id": conversation.id},
+            )
+
     event_logger.emit(
         EVENT_CHAT_COMPLETED,
         agent=pipeline_response.selected_agent,
@@ -111,6 +141,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         memory_used=pipeline_response.memory_used,
         retrieval_used=pipeline_response.retrieval_used,
         retrieval_result_count=pipeline_response.retrieval_result_count,
+        confidence=pipeline_response.confidence,
         conversation_id=conversation.id,
         messages_count=messages_count,
         event_summary=pipeline_response.event_summary,

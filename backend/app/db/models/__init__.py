@@ -3,3 +3,4 @@
 
 from app.db.models.conversation import Conversation, Message  # noqa: F401
 from app.db.models.event import EventLog  # noqa: F401
+from app.db.models.summary import ConversationSummary  # noqa: F401

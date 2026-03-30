@@ -1,33 +1,24 @@
 """
 Memory Rules — defines when and how memory is read, written, and pruned.
 
-Phase 1: constants and simple helpers.
-Phase 2: integrate with MemoryManager and session DB.
+Reads thresholds from application settings so they can be tuned via env vars.
 """
 
-from dataclasses import dataclass
+from app.core.config import settings
 
 
-@dataclass
 class MemoryRules:
-    # Maximum turns to include in context window
-    max_short_term_turns: int = 20
+    @property
+    def summarize_after_turns(self) -> int:
+        return settings.memory_summary_trigger_count
 
-    # Trigger summarization after this many turns
-    summarize_after_turns: int = 15
+    @property
+    def recent_message_limit(self) -> int:
+        return settings.memory_recent_message_limit
 
-    # Whether to persist summaries to long-term store
-    persist_summaries: bool = False  # True in Phase 2
-
-    # Minimum score to consider a memory relevant (future semantic memory)
-    relevance_threshold: float = 0.5
-
-    def should_summarize(self, turn_count: int) -> bool:
-        return turn_count >= self.summarize_after_turns
-
-    def trim_history(self, history: list[dict]) -> list[dict]:
-        """Return the most recent N turns respecting the max limit."""
-        return history[-self.max_short_term_turns:]
+    def should_summarize(self, message_count: int) -> bool:
+        """Return True when the conversation has hit the summarization threshold."""
+        return message_count >= self.summarize_after_turns
 
 
 memory_rules = MemoryRules()

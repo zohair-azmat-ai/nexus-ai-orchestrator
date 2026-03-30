@@ -36,7 +36,11 @@ logger = get_logger(__name__)
 OrchestratorContext = dict[str, Any]
 
 
-async def run_pipeline(request: ChatRequest) -> PipelineResult:
+async def run_pipeline(
+    request: ChatRequest,
+    db: "Any | None" = None,
+    conversation_id: str | None = None,
+) -> PipelineResult:
     """Execute the full orchestration pipeline and return a ChatResponse."""
 
     correlation_id = get_correlation_id()
@@ -45,15 +49,19 @@ async def run_pipeline(request: ChatRequest) -> PipelineResult:
     ctx: OrchestratorContext = {
         "correlation_id": correlation_id,
         "request": request,
+        "db": db,
+        "conversation_id": conversation_id,
         "memory": {},
         "retrieval_results": [],
         "retrieval_context": "",
         "selected_agent": "support",
         "answer": "",
+        "confidence": 0.0,
         "memory_used": False,
         "retrieval_used": False,
         "escalated": False,
         "events": [],
+        "agent_result": None,
     }
 
     pipeline = [
@@ -92,10 +100,13 @@ async def run_pipeline(request: ChatRequest) -> PipelineResult:
         retrieval_used=ctx["retrieval_used"],
         retrieval_context=ctx.get("retrieval_context", ""),
         retrieval_result_count=len(ctx.get("retrieval_results", [])),
+        confidence=ctx.get("confidence", 0.0),
         event_summary={
             "stage_events": ctx["events"],
             "escalated": ctx["escalated"],
             "duration_ms": round(duration_ms, 2),
             "retrieval_results": len(ctx.get("retrieval_results", [])),
+            "agent": ctx["selected_agent"],
+            "confidence": ctx.get("confidence", 0.0),
         },
     )
