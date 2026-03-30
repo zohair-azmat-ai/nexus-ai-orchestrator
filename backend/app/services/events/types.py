@@ -37,6 +37,10 @@ EVENT_AGENT_SELECTED = "agent.selected"
 EVENT_AGENT_EXECUTED = "agent.executed"
 EVENT_AGENT_RESPONDED = "agent.responded"
 EVENT_AGENT_ESCALATED = "agent.escalated"
+EVENT_ESCALATION_CASE_CREATED = "escalation.case.created"
+EVENT_ESCALATION_CASE_ASSIGNED = "escalation.case.assigned"
+EVENT_ESCALATION_CASE_STATUS_CHANGED = "escalation.case.status_changed"
+EVENT_ESCALATION_NOTE_ADDED = "escalation.note.added"
 
 # Memory events
 EVENT_MEMORY_LOADED = "memory.loaded"

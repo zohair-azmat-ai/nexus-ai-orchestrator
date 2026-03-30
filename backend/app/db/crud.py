@@ -15,6 +15,7 @@ from app.db.models.conversation import Conversation, Message
 from app.db.models.event import EventLog
 from app.db.models.summary import ConversationSummary
 from app.db.models.background_job import BackgroundJob
+from app.db.models.escalation import EscalationCase, EscalationNote
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -219,6 +220,133 @@ async def list_recent_jobs(
     if job_type:
         query = query.where(BackgroundJob.job_type == job_type)
     result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+# â”€â”€â”€ Escalation workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+async def create_escalation_case(
+    db: AsyncSession,
+    *,
+    conversation_id: str,
+    trace_id: str | None,
+    user_id: str,
+    escalation_reason: str,
+    severity: str,
+    latest_agent: str | None,
+    latest_summary: str | None,
+) -> EscalationCase:
+    case = EscalationCase(
+        id=str(uuid.uuid4()),
+        conversation_id=conversation_id,
+        trace_id=trace_id,
+        user_id=user_id,
+        escalation_reason=escalation_reason,
+        severity=severity,
+        status="open",
+        latest_agent=latest_agent,
+        latest_summary=latest_summary,
+    )
+    db.add(case)
+    await db.flush()
+    logger.debug("crud.escalation_case.created", extra={"case_id": case.id, "status": case.status})
+    return case
+
+
+async def get_escalation_case(db: AsyncSession, case_id: str) -> EscalationCase | None:
+    result = await db.execute(select(EscalationCase).where(EscalationCase.id == case_id))
+    return result.scalar_one_or_none()
+
+
+async def get_escalation_case_by_trace(db: AsyncSession, trace_id: str) -> EscalationCase | None:
+    result = await db.execute(
+        select(EscalationCase)
+        .where(EscalationCase.trace_id == trace_id)
+        .order_by(EscalationCase.created_at.desc())
+    )
+    return result.scalars().first()
+
+
+async def list_escalation_cases(
+    db: AsyncSession,
+    *,
+    limit: int = 50,
+    status: str | None = None,
+    severity: str | None = None,
+    assigned_to: str | None = None,
+) -> list[EscalationCase]:
+    query = select(EscalationCase).order_by(EscalationCase.created_at.desc()).limit(limit)
+    if status:
+        query = query.where(EscalationCase.status == status)
+    if severity:
+        query = query.where(EscalationCase.severity == severity)
+    if assigned_to:
+        query = query.where(EscalationCase.assigned_to == assigned_to)
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def update_escalation_status(
+    db: AsyncSession,
+    case_id: str,
+    status: str,
+) -> EscalationCase | None:
+    case = await get_escalation_case(db, case_id)
+    if case is None:
+        return None
+    case.status = status
+    case.updated_at = __import__("datetime").datetime.utcnow()
+    await db.flush()
+    logger.debug("crud.escalation_case.status_updated", extra={"case_id": case_id, "status": status})
+    return case
+
+
+async def assign_escalation_case(
+    db: AsyncSession,
+    case_id: str,
+    assigned_to: str,
+    *,
+    status: str | None = None,
+) -> EscalationCase | None:
+    case = await get_escalation_case(db, case_id)
+    if case is None:
+        return None
+    case.assigned_to = assigned_to
+    if status:
+        case.status = status
+    case.updated_at = __import__("datetime").datetime.utcnow()
+    await db.flush()
+    logger.debug("crud.escalation_case.assigned", extra={"case_id": case_id, "assigned_to": assigned_to})
+    return case
+
+
+async def add_escalation_note(
+    db: AsyncSession,
+    *,
+    case_id: str,
+    author: str,
+    note_type: str,
+    content: str,
+) -> EscalationNote:
+    note = EscalationNote(
+        id=str(uuid.uuid4()),
+        case_id=case_id,
+        author=author,
+        note_type=note_type,
+        content=content,
+    )
+    db.add(note)
+    await db.flush()
+    logger.debug("crud.escalation_note.created", extra={"case_id": case_id, "note_id": note.id})
+    return note
+
+
+async def list_escalation_notes(db: AsyncSession, case_id: str) -> list[EscalationNote]:
+    result = await db.execute(
+        select(EscalationNote)
+        .where(EscalationNote.case_id == case_id)
+        .order_by(EscalationNote.created_at.asc())
+    )
     return list(result.scalars().all())
 
 

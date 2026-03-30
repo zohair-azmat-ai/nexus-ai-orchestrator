@@ -32,6 +32,8 @@ class ChatResponse(BaseModel):
     retrieval_result_count: int = 0
     retrieval_quality: str = "none"
     confidence: float = 0.0
+    escalation_case_id: str | None = None
+    escalation_status: str | None = None
     memory_freshness: str = "empty"
     context_sources_used: list[str] = Field(default_factory=list)
     context_compaction_applied: bool = False

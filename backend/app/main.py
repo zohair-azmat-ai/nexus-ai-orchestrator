@@ -4,7 +4,7 @@ import time
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import health, chat, ingest, memory, observability, jobs
+from app.api.v1 import health, chat, ingest, memory, observability, jobs, escalations
 from app.core.config import settings
 from app.core.ids import generate_id, set_correlation_id, set_trace_id
 from app.core.logger import get_logger, set_log_context, clear_log_context
@@ -117,6 +117,7 @@ app.include_router(ingest.router, prefix=API_PREFIX)
 app.include_router(memory.router, prefix=API_PREFIX)
 app.include_router(observability.router, prefix=API_PREFIX)
 app.include_router(jobs.router, prefix=API_PREFIX)
+app.include_router(escalations.router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["Root"])

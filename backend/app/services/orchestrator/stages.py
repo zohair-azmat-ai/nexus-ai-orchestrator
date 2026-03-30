@@ -759,6 +759,40 @@ async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
 
     if final_agent == "escalation" or agent_requires_escalation:
         ctx["escalated"] = True
+        db = ctx.get("db")
+        conversation_id = ctx.get("conversation_id")
+        existing_case_id = None
+        existing_case_status = None
+        if agent_result and isinstance(agent_result.notes, dict):
+            existing_case_id = agent_result.notes.get("case_id")
+            existing_case_status = agent_result.notes.get("status")
+
+        if existing_case_id:
+            ctx["escalation_case_id"] = existing_case_id
+            ctx["escalation_status"] = existing_case_status or "open"
+        elif db and conversation_id:
+            from app.services.escalations.manager import escalation_workflow, infer_severity
+
+            reason = "Escalation requested"
+            if agent_result and isinstance(agent_result.notes, dict):
+                reason = agent_result.notes.get("detected_reason") or agent_result.notes.get("reason") or reason
+            latest_summary = ""
+            if agent_result:
+                latest_summary = agent_result.reasoning_summary or ctx.get("answer", "")
+            case = await escalation_workflow.ensure_case(
+                db,
+                conversation_id=conversation_id,
+                trace_id=ctx.get("trace_id"),
+                user_id=ctx["request"].user_id,
+                escalation_reason=reason,
+                severity=infer_severity(reason),
+                latest_agent=final_agent,
+                latest_summary=latest_summary,
+                note_author=final_agent or "system",
+                note_type="agent" if final_agent else "system",
+            )
+            ctx["escalation_case_id"] = case.id
+            ctx["escalation_status"] = case.status
         _append_stage_event(ctx, "escalation", escalated=True)
         logger.info(
             "escalation.triggered",
@@ -766,6 +800,7 @@ async def escalation_stage(ctx: OrchestratorContext) -> OrchestratorContext:
                 "agent": final_agent,
                 "correlation_id": ctx.get("correlation_id", ""),
                 "user_id": ctx["request"].user_id,
+                "case_id": ctx.get("escalation_case_id"),
             },
         )
     return ctx
@@ -786,6 +821,8 @@ async def event_log_stage(ctx: OrchestratorContext) -> OrchestratorContext:
             "retrieval_results": len(ctx.get("retrieval_results", [])),
             "retrieval_quality": ctx.get("retrieval_quality", "none"),
             "memory_freshness": ctx.get("memory", {}).get("memory_freshness", "empty"),
+            "escalation_case_id": ctx.get("escalation_case_id"),
+            "escalation_status": ctx.get("escalation_status"),
             "escalated": ctx["escalated"],
             "tools_planned": ctx.get("tools_planned", []),
             "tools_used": ctx.get("tools_used", []),
