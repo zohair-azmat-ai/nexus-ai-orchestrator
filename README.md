@@ -17,36 +17,54 @@
 </p>
 
 <p align="center">
+  <strong>From Retrieval to Reasoning to Action - A Full AI Orchestration System</strong>
+</p>
+
+<p align="center">
   Nexus AI is a production-style AI platform for memory-aware conversations, grounded retrieval, multi-step planning, observability, async jobs, and human-in-the-loop escalation.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-active%20development-2563eb?style=for-the-badge" alt="Status badge" />
-  <img src="https://img.shields.io/badge/phase-7.0%20Deployment-e11d48?style=for-the-badge" alt="Phase badge" />
-  <img src="https://img.shields.io/badge/backend-FastAPI-0f766e?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend badge" />
-  <img src="https://img.shields.io/badge/frontend-Next.js-111827?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Frontend badge" />
-  <img src="https://img.shields.io/badge/tests-160%20passing-15803d?style=for-the-badge" alt="Tests badge" />
+  <img src="https://img.shields.io/badge/Status-Active%20Development-2563eb?style=for-the-badge" alt="Status badge" />
+  <img src="https://img.shields.io/badge/Phase-Production%20Ready-e11d48?style=for-the-badge" alt="Phase badge" />
+  <img src="https://img.shields.io/badge/Tests-160%20Passing-15803d?style=for-the-badge" alt="Tests badge" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-API%20layer-0ea5e9?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI badge" />
-  <img src="https://img.shields.io/badge/Next.js-client%20app-7c3aed?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js badge" />
-  <img src="https://img.shields.io/badge/PostgreSQL-state%20store-16a34a?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL badge" />
-  <img src="https://img.shields.io/badge/Qdrant-vector%20search-f59e0b?style=flat-square" alt="Qdrant badge" />
-  <img src="https://img.shields.io/badge/OpenAI-LLM%20router-ef4444?style=flat-square&logo=openai&logoColor=white" alt="OpenAI badge" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-0f766e?style=flat-square&logo=fastapi&logoColor=white" alt="Backend badge" />
+  <img src="https://img.shields.io/badge/Frontend-Next.js-111827?style=flat-square&logo=nextdotjs&logoColor=white" alt="Frontend badge" />
+  <img src="https://img.shields.io/badge/DB-PostgreSQL-16a34a?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL badge" />
+  <img src="https://img.shields.io/badge/Vector%20DB-Qdrant-f59e0b?style=flat-square" alt="Qdrant badge" />
+  <img src="https://img.shields.io/badge/AI-OpenAI-7c3aed?style=flat-square&logo=openai&logoColor=white" alt="OpenAI badge" />
 </p>
 
 ## Overview
 
-Nexus AI is an advanced AI orchestration platform, not a simple chatbot wrapper. The repository combines a staged FastAPI orchestrator, memory and retrieval systems, specialized agents, tool-assisted execution, background jobs, observability, and an emerging human review workflow into a single backend-first operating layer for serious AI applications.
+Nexus AI is an advanced AI orchestration platform, not a simple chatbot wrapper.
+
+The repository combines a staged FastAPI orchestrator, memory and retrieval systems, specialized agents, tool-assisted execution, background jobs, observability, and a human review workflow into a single backend-first operating layer for serious AI applications.
 
 The project exists to answer a harder question than "how do we chat with an LLM?" It asks how to build an AI system that can route intelligently, stay grounded, remember the right things, expose traceable execution, recover safely when confidence is weak, and hand off to humans when risk is high.
 
-## Why This Project Exists
+## Why Nexus AI Is Different
 
-- Most AI demos stop at prompt wiring. Nexus AI is built around orchestration, persistence, auditability, and extensibility.
-- Real-world AI systems need memory freshness, retrieval quality control, tool-aware planning, async work, and production observability.
-- Escalation and review matter. Nexus AI is moving toward a full human-in-the-loop operating model rather than pretending every answer should be fully autonomous.
+- Nexus AI is not a chatbot wrapper. It is a full orchestration engine.
+- It combines retrieval, memory, planning, tools, and multi-agent execution in one runtime path.
+- It is built like a production backend, with traces, metrics, health checks, CI, and deployment assets.
+- It includes real human-in-the-loop escalation instead of treating review as an afterthought.
+- It is structured to evolve from assistant workflows into more autonomous AI operating systems.
+
+## System Capabilities
+
+| Capability | What it Enables |
+|---|---|
+| Retrieval (RAG) | Grounded answers using indexed knowledge and quality-scored context |
+| Memory | Persistent conversations, summaries, freshness heuristics, and context reuse |
+| Multi-Agent Reasoning | Support, research, planner, summarizer, and escalation agent routing |
+| Tool Execution | Structured tool invocation for context lookup, retrieval, and escalation |
+| Async Jobs | Background ingestion, summary generation, and analytics aggregation |
+| Observability | Trace IDs, metrics, stage timings, event logs, and auditability |
+| HITL Escalation | Persistent review cases, assignment, notes, status changes, and reviewer UI |
 
 ## Current Capabilities
 
@@ -61,6 +79,29 @@ The project exists to answer a harder question than "how do we chat with an LLM?
 - Reviewer/admin authentication with protected reviewer APIs and a frontend login flow.
 - Deterministic evaluation suites for retrieval quality, memory quality, agent selection, and regression stability.
 - Production readiness improvements for environment validation, Docker deployment, CI, and readiness checks.
+
+## Key Features
+
+- Deterministic planning: simple requests stay single-step while complex requests expand into explainable multi-step plans.
+- Context discipline: retrieval and memory are filtered, compacted, and routed intentionally instead of dumping raw context everywhere.
+- Grounded response behavior: confidence and answer posture adapt to retrieval quality and memory freshness.
+- Production-style visibility: traces, metrics, enriched events, and stage timings are built into the execution path.
+- HITL-ready operations: escalations now become persistent review cases rather than transient runtime signals.
+
+## System Flow
+
+```text
+User
+  -> API
+  -> Orchestrator
+  -> Agents
+  -> Tools
+  -> Jobs
+  -> Observability
+  -> HITL Review
+```
+
+This pipeline is designed so every request can be routed, grounded, executed, observed, and escalated with clear operational visibility.
 
 ## Architecture Summary
 
@@ -83,24 +124,24 @@ flowchart LR
     AGENTS --> LLM[OpenAI Router]
     TOOLS --> JOBS[Async Jobs]
     JOBS --> PG
+    JOBS --> OBS
     OBS --> PG
     HITL --> PG
     HITL --> REVIEW[Human Review Queue]
 
     TOOLS --> RET
     TOOLS --> MEM
-    JOBS --> OBS
     AGENTS --> OBS
     RET --> OBS
     MEM --> OBS
     ORCH --> REVIEW
 
+    classDef user fill:#0f172a,stroke:#64748b,color:#f8fafc,stroke-width:2px;
     classDef api fill:#2563eb,stroke:#1e3a8a,color:#ffffff,stroke-width:2px;
     classDef agent fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px;
     classDef db fill:#16a34a,stroke:#14532d,color:#ffffff,stroke-width:2px;
     classDef tools fill:#ea580c,stroke:#7c2d12,color:#ffffff,stroke-width:2px;
     classDef obs fill:#dc2626,stroke:#7f1d1d,color:#ffffff,stroke-width:2px;
-    classDef user fill:#0f172a,stroke:#475569,color:#f8fafc,stroke-width:2px;
 
     class U user;
     class API,LLM api;
@@ -110,37 +151,39 @@ flowchart LR
     class OBS,HITL,REVIEW obs;
 ```
 
-## Key Features
+## Development Progress
 
-- Deterministic planning: simple requests stay single-step while complex requests expand into explainable multi-step plans.
-- Context discipline: retrieval and memory are filtered, compacted, and routed intentionally instead of dumping raw context everywhere.
-- Grounded response behavior: confidence and answer posture adapt to retrieval quality and memory freshness.
-- Production-style visibility: traces, metrics, enriched events, and stage timings are built into the execution path.
-- HITL-ready operations: escalations now become persistent review cases rather than transient runtime signals.
+- [x] **Phase 1 - Foundation**  
+  FastAPI service structure, project scaffolding, and base orchestrator.
 
-## 🚀 Development Progress
+- [x] **Phase 2 - Database + RAG**  
+  PostgreSQL, Qdrant, ingestion, indexing, and retrieval.
 
-- [x] Phase 1 — Foundation (FastAPI, structure, base orchestrator)
-- [x] Phase 2 — Database + RAG (PostgreSQL, Qdrant, ingestion, retrieval)
-- [x] Phase 3 — Agents + LLM + Tools (multi-agent system, tool execution)
-- [x] Phase 4 — Async Jobs + Observability (background jobs, tracing, metrics)
-- [x] Phase 5 — Planning + Intelligence
-  - [x] Step 1: Multi-step execution & chaining
-  - [x] Step 2: Smart planning (context-aware execution)
-  - [x] Step 3: Retrieval & memory quality optimization
-- [x] Phase 6 — Production Features
+- [x] **Phase 3 - Agents + LLM + Tools**  
+  Multi-agent routing, LLM integration, and structured tool execution.
+
+- [x] **Phase 4 - Async Jobs + Observability**  
+  Background jobs, tracing, event logging, and metrics.
+
+- [x] **Phase 5 - Planning + Intelligence**
+  - [x] Step 1: Multi-step execution and chaining
+  - [x] Step 2: Smart planning and context-aware execution
+  - [x] Step 3: Retrieval and memory quality optimization
+
+- [x] **Phase 6 - Production Features**
   - [x] Step 1: HITL escalation workflow
   - [x] Step 2: HITL dashboard UI
-  - [x] Step 3: Authentication + roles
-  - [x] Step 4: Evaluation & benchmark suite
-- [x] Phase 7 — Deployment & Production Polish
+  - [x] Step 3: Authentication and roles
+  - [x] Step 4: Evaluation and benchmark suite
+
+- [x] **Phase 7 - Deployment and Production Polish**
   - [x] Environment validation
-  - [x] Docker & compose setup
+  - [x] Docker and Compose setup
   - [x] CI/CD pipeline
-  - [x] Health & readiness endpoints
+  - [x] Health and readiness endpoints
   - [x] Deployment documentation
 
-> All core phases completed — Nexus AI is now a production-ready AI orchestration platform.
+> All core phases completed - Nexus AI is now a production-ready AI orchestration platform.
 
 ## Backend Highlights
 
@@ -193,7 +236,9 @@ docker-compose.prod.yml
 
 ## Testing
 
-The backend test suite is designed to run without live OpenAI, Qdrant, or PostgreSQL dependencies. The current repository state includes:
+The backend test suite is designed to run without live OpenAI, Qdrant, or PostgreSQL dependencies.
+
+The current repository state includes:
 
 - `160` backend tests passing.
 - Coverage for orchestration, planning, retrieval quality, memory freshness, jobs, observability, tools, and escalation workflow.
@@ -245,6 +290,7 @@ npm run dev
 ```
 
 Set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` if your backend is not running on `http://localhost:8000`.
+
 For containerized Next.js deployments, you can also set `INTERNAL_API_BASE_URL` so server-side requests use an internal backend hostname while browsers keep using the public API URL.
 
 ### 5. Verify the platform
@@ -280,6 +326,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 Backend-specific environment and runtime details live in [backend/README.md](backend/README.md).
 
+## Future Roadmap
+
+- Reviewer dashboard refinement and richer HITL workflows
+- Deeper planning and autonomous execution strategies
+- Expanded evaluation coverage and CI quality gates
+- Scaled deployment patterns and infrastructure hardening
+
 ## Roadmap and Current Status
 
 - Completed through Phase 5 Step 3: retrieval and memory quality optimization.
@@ -290,7 +343,9 @@ For the latest implementation snapshot, see [docs/dev-status.md](docs/dev-status
 
 ## Backend Documentation
 
-The root README is the main GitHub showcase and project overview. The backend-only setup, environment variables, API group summary, and test commands are documented in [backend/README.md](backend/README.md).
+The root README is the main GitHub showcase and project overview.
+
+The backend-only setup, environment variables, API group summary, and test commands are documented in [backend/README.md](backend/README.md).
 
 ## License
 
