@@ -1,8 +1,15 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import AccessDenied from "@/components/auth/AccessDenied";
+import DashboardAuthActions from "@/components/auth/DashboardAuthActions";
 import BackendUnavailable from "@/components/escalations/BackendUnavailable";
 import DashboardShell from "@/components/escalations/DashboardShell";
 import EscalationQueue from "@/components/escalations/EscalationQueue";
+import { getCurrentUser } from "@/lib/auth";
+import { AUTH_TOKEN_COOKIE } from "@/lib/auth-storage";
+import { ApiError } from "@/lib/api";
 import { listEscalations } from "@/lib/escalations";
 
 interface EscalationsPageProps {
@@ -15,6 +22,21 @@ interface EscalationsPageProps {
 }
 
 export default async function EscalationsPage({ searchParams }: EscalationsPageProps) {
+  const authToken = cookies().get(AUTH_TOKEN_COOKIE)?.value;
+  if (!authToken) {
+    redirect("/login?next=/escalations");
+  }
+
+  let currentUser;
+  try {
+    currentUser = await getCurrentUser(authToken);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirect("/login?next=/escalations");
+    }
+    throw error;
+  }
+
   const status = searchParams?.status ?? "";
   const severity = searchParams?.severity ?? "";
   const assignedTo = searchParams?.assigned_to ?? "";
@@ -29,6 +51,7 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
       status: status || undefined,
       severity: severity || undefined,
       assigned_to: assignedTo || undefined,
+      authToken,
     });
   } catch (error) {
     integrationError =
@@ -40,7 +63,12 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
       eyebrow="Human In The Loop"
       title="Escalation Queue"
       description="Review escalated cases, focus the queue with backend filters, and drill directly into the reviewer workflow."
+      actions={<DashboardAuthActions currentUser={currentUser} />}
     >
+      {currentUser.role !== "reviewer" && currentUser.role !== "admin" ? (
+        <AccessDenied message="Reviewer or admin access is required to view escalation cases." />
+      ) : (
+        <>
       <section className="mb-5 rounded-2xl border border-white/10 bg-slate-950/60 p-5">
         <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <label className="text-sm text-slate-300">
@@ -125,6 +153,8 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
             Try clearing one of the filters or create a new escalation through the existing workflow.
           </p>
         </section>
+      )}
+        </>
       )}
     </DashboardShell>
   );

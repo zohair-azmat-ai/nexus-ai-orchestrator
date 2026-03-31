@@ -14,7 +14,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-active%20development-2563eb?style=for-the-badge" alt="Status badge" />
-  <img src="https://img.shields.io/badge/phase-6.1%20HITL-e11d48?style=for-the-badge" alt="Phase badge" />
+  <img src="https://img.shields.io/badge/phase-6.3%20HITL-e11d48?style=for-the-badge" alt="Phase badge" />
   <img src="https://img.shields.io/badge/backend-FastAPI-0f766e?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend badge" />
   <img src="https://img.shields.io/badge/frontend-Next.js-111827?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Frontend badge" />
   <img src="https://img.shields.io/badge/tests-148%20passing-15803d?style=for-the-badge" alt="Tests badge" />
@@ -50,6 +50,7 @@ The project exists to answer a harder question than "how do we chat with an LLM?
 - Async job system for ingestion, analytics, and memory summary workflows.
 - Internal observability with traces, stage timings, metrics, and event enrichment.
 - Human-in-the-loop escalation workflow with persistent cases, notes, assignment, status changes, and audit events.
+- Reviewer/admin authentication with protected reviewer APIs and a frontend login flow.
 
 ## Architecture Summary
 
@@ -191,6 +192,11 @@ docker compose up -d
 uvicorn app.main:app --reload --port 8000
 ```
 
+In development, the backend bootstraps these accounts automatically:
+
+- `reviewer@nexus.local` / `ReviewerPass123!`
+- `admin@nexus.local` / `AdminPass123!`
+
 ### 4. Start the frontend
 
 ```bash
@@ -208,12 +214,16 @@ Set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` if your backend is not r
 curl http://localhost:8000/api/v1/health
 ```
 
+### 6. Sign in to the reviewer dashboard
+
+Open `http://localhost:3000/login` and sign in with one of the development accounts above.
+
 Backend-specific environment and runtime details live in [backend/README.md](backend/README.md).
 
 ## Roadmap and Current Status
 
 - Completed through Phase 5 Step 3: retrieval and memory quality optimization.
-- Phase 6 Step 1 is currently in progress: human-in-the-loop escalation workflow.
+- Completed through Phase 6 Step 3: auth, roles, and protected reviewer APIs.
 - Next maturity direction: reviewer dashboard UX, deeper HITL tooling, broader production controls, and continued hardening of orchestration and observability.
 
 For the latest implementation snapshot, see [docs/dev-status.md](docs/dev-status.md).

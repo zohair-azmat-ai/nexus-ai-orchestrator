@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import StatusBadge from "@/components/escalations/StatusBadge";
 import { assignEscalation, updateEscalationStatus } from "@/lib/escalations";
+import type { AuthUser } from "@/types/auth";
 import type { EscalationCase, EscalationStatus } from "@/types/escalations";
 
 const statuses: EscalationStatus[] = [
@@ -17,18 +18,22 @@ const statuses: EscalationStatus[] = [
 
 interface ReviewerActionsProps {
   escalationCase: EscalationCase;
+  authToken: string;
+  currentUser: AuthUser;
   onCaseUpdated: (nextCase: EscalationCase) => void;
 }
 
 export default function ReviewerActions({
   escalationCase,
+  authToken,
+  currentUser,
   onCaseUpdated,
 }: ReviewerActionsProps) {
   const router = useRouter();
   const [assignedTo, setAssignedTo] = useState(escalationCase.assigned_to ?? "");
-  const [assignActor, setAssignActor] = useState("");
+  const [assignActor, setAssignActor] = useState(currentUser.full_name || currentUser.email);
   const [status, setStatus] = useState<EscalationStatus>(escalationCase.status);
-  const [statusActor, setStatusActor] = useState("");
+  const [statusActor, setStatusActor] = useState(currentUser.full_name || currentUser.email);
   const [isRefreshing, startRefresh] = useTransition();
   const [assignError, setAssignError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -40,6 +45,11 @@ export default function ReviewerActions({
     setStatus(escalationCase.status);
   }, [escalationCase.assigned_to, escalationCase.status]);
 
+  useEffect(() => {
+    setAssignActor(currentUser.full_name || currentUser.email);
+    setStatusActor(currentUser.full_name || currentUser.email);
+  }, [currentUser.email, currentUser.full_name]);
+
   async function handleAssign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAssignError(null);
@@ -50,7 +60,7 @@ export default function ReviewerActions({
         assigned_to: assignedTo,
         actor: assignActor || undefined,
         move_to_in_review: true,
-      });
+      }, authToken);
       onCaseUpdated(nextCase);
       setStatus(nextCase.status);
       setAssignError(null);
@@ -73,7 +83,7 @@ export default function ReviewerActions({
       const nextCase = await updateEscalationStatus(escalationCase.case_id, {
         status,
         actor: statusActor || undefined,
-      });
+      }, authToken);
       onCaseUpdated(nextCase);
       setStatusError(null);
       startRefresh(() => {

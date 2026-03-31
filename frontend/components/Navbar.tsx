@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NavAuthLink from "@/components/auth/NavAuthLink";
 import { API_URL } from "@/lib/api";
 
 export default function Navbar() {
@@ -17,6 +18,7 @@ export default function Navbar() {
           <Link href="#features" className="hover:text-white transition-colors">Features</Link>
           <Link href="#architecture" className="hover:text-white transition-colors">Architecture</Link>
           <Link href="/escalations" className="hover:text-white transition-colors">Escalations</Link>
+          <NavAuthLink />
           <a
             href={`${API_URL}/docs`}
             target="_blank"

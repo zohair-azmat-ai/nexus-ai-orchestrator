@@ -16,9 +16,73 @@ from app.db.models.event import EventLog
 from app.db.models.summary import ConversationSummary
 from app.db.models.background_job import BackgroundJob
 from app.db.models.escalation import EscalationCase, EscalationNote
+from app.db.models.user import User
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+async def create_user(
+    db: AsyncSession,
+    *,
+    email: str,
+    full_name: str,
+    password_hash: str,
+    role: str,
+    is_active: bool = True,
+) -> User:
+    user = User(
+        id=str(uuid.uuid4()),
+        email=email.strip().lower(),
+        full_name=full_name,
+        password_hash=password_hash,
+        role=role,
+        is_active=is_active,
+    )
+    db.add(user)
+    await db.flush()
+    logger.debug("crud.user.created", extra={"user_id": user.id, "email": user.email, "role": user.role})
+    return user
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    result = await db.execute(select(User).where(User.email == email.strip().lower()))
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def create_or_update_user(
+    db: AsyncSession,
+    *,
+    email: str,
+    full_name: str,
+    password_hash: str,
+    role: str,
+    is_active: bool = True,
+) -> User:
+    user = await get_user_by_email(db, email)
+    if user is None:
+        return await create_user(
+            db,
+            email=email,
+            full_name=full_name,
+            password_hash=password_hash,
+            role=role,
+            is_active=is_active,
+        )
+
+    user.full_name = full_name
+    user.password_hash = password_hash
+    user.role = role
+    user.is_active = is_active
+    user.updated_at = __import__("datetime").datetime.utcnow()
+    await db.flush()
+    logger.debug("crud.user.updated", extra={"user_id": user.id, "email": user.email, "role": user.role})
+    return user
 
 
 # ─── Conversations ────────────────────────────────────────────────────────────

@@ -8,12 +8,15 @@ import ReviewerActions from "@/components/escalations/ReviewerActions";
 import StatusBadge from "@/components/escalations/StatusBadge";
 import TraceSnapshot from "@/components/escalations/TraceSnapshot";
 import { formatDateTime } from "@/components/escalations/utils";
+import type { AuthUser } from "@/types/auth";
 import type { EscalationCase, EscalationNote } from "@/types/escalations";
 import type { TraceSummary } from "@/types/observability";
 
 interface CaseDetailClientProps {
   initialCase: EscalationCase;
   initialNotes: EscalationNote[];
+  authToken: string;
+  currentUser: AuthUser;
   notesUnavailableReason?: string;
   trace: TraceSummary | null;
   traceUnavailableReason?: string;
@@ -22,6 +25,8 @@ interface CaseDetailClientProps {
 export default function CaseDetailClient({
   initialCase,
   initialNotes,
+  authToken,
+  currentUser,
   notesUnavailableReason,
   trace,
   traceUnavailableReason,
@@ -84,12 +89,19 @@ export default function CaseDetailClient({
           <NotesPanel
             escalationCase={escalationCase}
             initialNotes={initialNotes}
+            authToken={authToken}
+            currentUser={currentUser}
             unavailableReason={notesUnavailableReason}
           />
         </div>
 
         <div className="space-y-6">
-          <ReviewerActions escalationCase={escalationCase} onCaseUpdated={setEscalationCase} />
+          <ReviewerActions
+            escalationCase={escalationCase}
+            authToken={authToken}
+            currentUser={currentUser}
+            onCaseUpdated={setEscalationCase}
+          />
           <TraceSnapshot trace={trace} unavailableReason={traceUnavailableReason} />
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { formatDateTime, titleize } from "@/components/escalations/utils";
 import { createEscalationNote } from "@/lib/escalations";
+import type { AuthUser } from "@/types/auth";
 import type {
   EscalationCase,
   EscalationNote,
@@ -14,17 +15,21 @@ import type {
 interface NotesPanelProps {
   escalationCase: EscalationCase;
   initialNotes: EscalationNote[];
+  authToken: string;
+  currentUser: AuthUser;
   unavailableReason?: string;
 }
 
 export default function NotesPanel({
   escalationCase,
   initialNotes,
+  authToken,
+  currentUser,
   unavailableReason,
 }: NotesPanelProps) {
   const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
-  const [author, setAuthor] = useState("");
+  const [author, setAuthor] = useState(currentUser.full_name || currentUser.email);
   const [content, setContent] = useState("");
   const [noteType, setNoteType] = useState<EscalationNoteType>("human");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +39,10 @@ export default function NotesPanel({
   useEffect(() => {
     setNotes(initialNotes);
   }, [initialNotes]);
+
+  useEffect(() => {
+    setAuthor(currentUser.full_name || currentUser.email);
+  }, [currentUser.email, currentUser.full_name]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,7 +54,7 @@ export default function NotesPanel({
         author,
         content,
         note_type: noteType,
-      });
+      }, authToken);
       setNotes((current) => [...current, note]);
       setError(null);
       setContent("");

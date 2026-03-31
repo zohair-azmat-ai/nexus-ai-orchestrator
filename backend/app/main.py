@@ -4,12 +4,13 @@ import time
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import health, chat, ingest, memory, observability, jobs, escalations
+from app.api.v1 import auth, health, chat, ingest, memory, observability, jobs, escalations
 from app.core.config import settings
 from app.core.ids import generate_id, set_correlation_id, set_trace_id
 from app.core.logger import get_logger, set_log_context, clear_log_context
-from app.db.postgres import create_all_tables
+from app.db.postgres import create_all_tables, get_db
 from app.services.analytics.aggregator import record_request
+from app.services.auth import auth_manager
 from app.services.events import logger as event_logger
 from app.services.events.types import EVENT_API_REQUEST_COMPLETED, EVENT_API_REQUEST_FAILED, EVENT_API_REQUEST_STARTED, EVENT_STARTUP, EVENT_SHUTDOWN
 
@@ -27,6 +28,10 @@ async def lifespan(app: FastAPI):
     event_logger.emit(EVENT_STARTUP, service=settings.app_name, version=settings.app_version)
     try:
         await create_all_tables()
+        async for db in get_db():
+            await auth_manager.ensure_dev_users(db)
+            await db.commit()
+            break
     except Exception as exc:
         logger.warning("db.create_tables_failed", extra={"error": str(exc)})
     yield
@@ -118,6 +123,7 @@ app.include_router(memory.router, prefix=API_PREFIX)
 app.include_router(observability.router, prefix=API_PREFIX)
 app.include_router(jobs.router, prefix=API_PREFIX)
 app.include_router(escalations.router, prefix=API_PREFIX)
+app.include_router(auth.router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["Root"])

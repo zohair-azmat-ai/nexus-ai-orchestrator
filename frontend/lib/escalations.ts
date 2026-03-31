@@ -14,6 +14,7 @@ interface ListEscalationsOptions {
   status?: string;
   severity?: string;
   assigned_to?: string;
+  authToken?: string | null;
 }
 
 function buildQuery(params: Iterable<[string, string | number | undefined]>) {
@@ -32,49 +33,63 @@ function buildQuery(params: Iterable<[string, string | number | undefined]>) {
 export async function listEscalations(
   options: ListEscalationsOptions = {},
 ): Promise<EscalationCaseListResponse> {
-  return apiRequest(`/api/v1/escalations${buildQuery(Object.entries(options))}`, {
+  const { authToken, ...queryOptions } = options;
+
+  return apiRequest(`/api/v1/escalations${buildQuery(Object.entries(queryOptions))}`, {
     cache: "no-store",
+    authToken,
   });
 }
 
-export async function getEscalation(caseId: string): Promise<EscalationCase> {
+export async function getEscalation(caseId: string, authToken?: string | null): Promise<EscalationCase> {
   return apiRequest(`/api/v1/escalations/${caseId}`, {
     cache: "no-store",
+    authToken,
   });
 }
 
-export async function listEscalationNotes(caseId: string): Promise<EscalationNoteListResponse> {
+export async function listEscalationNotes(
+  caseId: string,
+  authToken?: string | null,
+): Promise<EscalationNoteListResponse> {
   return apiRequest(`/api/v1/escalations/${caseId}/notes`, {
     cache: "no-store",
+    authToken,
   });
 }
 
 export async function assignEscalation(
   caseId: string,
   payload: EscalationAssignRequest,
+  authToken?: string | null,
 ): Promise<EscalationCase> {
   return apiRequest(`/api/v1/escalations/${caseId}/assign`, {
     method: "POST",
     body: JSON.stringify(payload),
+    authToken,
   });
 }
 
 export async function updateEscalationStatus(
   caseId: string,
   payload: EscalationStatusUpdateRequest,
+  authToken?: string | null,
 ): Promise<EscalationCase> {
   return apiRequest(`/api/v1/escalations/${caseId}/status`, {
     method: "POST",
     body: JSON.stringify(payload),
+    authToken,
   });
 }
 
 export async function createEscalationNote(
   caseId: string,
   payload: EscalationNoteCreateRequest,
+  authToken?: string | null,
 ): Promise<EscalationNote> {
   return apiRequest(`/api/v1/escalations/${caseId}/notes`, {
     method: "POST",
     body: JSON.stringify(payload),
+    authToken,
   });
 }

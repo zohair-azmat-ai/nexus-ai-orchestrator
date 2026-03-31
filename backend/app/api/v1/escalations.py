@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps.auth import require_reviewer_or_admin
 from app.db import crud
+from app.db.models.user import User
 from app.db.postgres import get_db
 from app.schemas.common import ErrorResponse
 from app.schemas.escalations import (
@@ -52,6 +54,7 @@ async def list_escalations(
     status: str | None = Query(default=None),
     severity: str | None = Query(default=None),
     assigned_to: str | None = Query(default=None),
+    current_user: User = Depends(require_reviewer_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> EscalationCaseListResponse:
     cases = await crud.list_escalation_cases(
@@ -70,7 +73,11 @@ async def list_escalations(
     responses={404: {"model": ErrorResponse}},
     tags=["Escalations"],
 )
-async def get_escalation(case_id: str, db: AsyncSession = Depends(get_db)) -> EscalationCaseResponse:
+async def get_escalation(
+    case_id: str,
+    current_user: User = Depends(require_reviewer_or_admin),
+    db: AsyncSession = Depends(get_db),
+) -> EscalationCaseResponse:
     case = await crud.get_escalation_case(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail=f"Escalation case {case_id!r} not found")
@@ -86,6 +93,7 @@ async def get_escalation(case_id: str, db: AsyncSession = Depends(get_db)) -> Es
 async def assign_escalation(
     case_id: str,
     request: EscalationAssignRequest,
+    current_user: User = Depends(require_reviewer_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> EscalationCaseResponse:
     try:
@@ -113,6 +121,7 @@ async def assign_escalation(
 async def update_escalation_status(
     case_id: str,
     request: EscalationStatusUpdateRequest,
+    current_user: User = Depends(require_reviewer_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> EscalationCaseResponse:
     try:
@@ -139,6 +148,7 @@ async def update_escalation_status(
 async def add_escalation_note(
     case_id: str,
     request: EscalationNoteCreateRequest,
+    current_user: User = Depends(require_reviewer_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> EscalationNoteResponse:
     try:
@@ -165,6 +175,7 @@ async def add_escalation_note(
 )
 async def list_escalation_notes(
     case_id: str,
+    current_user: User = Depends(require_reviewer_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> EscalationNoteListResponse:
     case = await crud.get_escalation_case(db, case_id)

@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")
 
+    # Auth
+    auth_secret_key: str = Field(default="nexus-ai-dev-secret-key")
+    auth_access_token_expire_seconds: int = Field(default=60 * 60 * 8)
+    auth_bootstrap_dev_users: bool = Field(default=True)
+    auth_dev_admin_email: str = Field(default="admin@nexus.local")
+    auth_dev_admin_password: str = Field(default="AdminPass123!")
+    auth_dev_reviewer_email: str = Field(default="reviewer@nexus.local")
+    auth_dev_reviewer_password: str = Field(default="ReviewerPass123!")
+
     @field_validator("debug", mode="before")
     @classmethod
     def normalize_debug(cls, value):

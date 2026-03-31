@@ -1,10 +1,36 @@
+import { AUTH_TOKEN_STORAGE_KEY } from "@/lib/auth-storage";
+
 const API_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8000"
 ).replace(/\/+$/, "");
 
-async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+interface ApiRequestOptions extends RequestInit {
+  authToken?: string | null;
+  skipAuth?: boolean;
+}
+
+function getBrowserAuthToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const authToken = options.skipAuth ? null : (options.authToken ?? getBrowserAuthToken());
   let response: Response;
 
   try {
@@ -12,6 +38,7 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(options.headers ?? {}),
       },
     });
@@ -31,7 +58,7 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
       // Keep the default fallback when the response body is empty or not JSON.
     }
 
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   if (response.status === 204) {

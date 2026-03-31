@@ -11,6 +11,7 @@
 - Phase 5 Step 3: Retrieval and memory quality optimization
 - Phase 6 Step 1: Human-in-the-Loop escalation workflow
 - Phase 6 Step 2: HITL dashboard and reviewer workflow UI
+- Phase 6 Step 3: Authentication, roles, and protected reviewer APIs
 
 ## In Progress
 - Broader HITL automation and audit tooling

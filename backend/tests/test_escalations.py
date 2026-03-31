@@ -3,6 +3,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.security import hash_password
+from app.db import crud
+from app.db.postgres import get_db
 from app.main import app
 
 
@@ -16,6 +19,27 @@ BASE_PAYLOAD = {
 
 def _payload(message: str) -> dict:
     return {**BASE_PAYLOAD, "message": message}
+
+
+async def _create_reviewer(email: str = "reviewer@example.com", password: str = "Password123!") -> str:
+    async for db in get_db():
+        user = await crud.create_user(
+            db,
+            email=email,
+            full_name="Reviewer Example",
+            password_hash=hash_password(password),
+            role="reviewer",
+            is_active=True,
+        )
+        await db.commit()
+        return user.email
+    raise RuntimeError("Unable to create reviewer")
+
+
+async def _login_reviewer(client: AsyncClient, email: str = "reviewer@example.com", password: str = "Password123!") -> dict[str, str]:
+    response = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 @pytest.mark.asyncio
@@ -108,7 +132,9 @@ async def test_escalation_crud_and_filters(override_db):
 
 @pytest.mark.asyncio
 async def test_chat_escalation_creates_case_and_enriches_response():
+    await _create_reviewer()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        auth_headers = await _login_reviewer(client)
         response = await client.post(
             "/api/v1/chat",
             json=_payload("This is urgent and I need a human manager immediately"),
@@ -117,8 +143,8 @@ async def test_chat_escalation_creates_case_and_enriches_response():
         assert response.status_code == 200
         body = response.json()
         case_id = body["escalation_case_id"]
-        case_response = await client.get(f"/api/v1/escalations/{case_id}")
-        notes_response = await client.get(f"/api/v1/escalations/{case_id}/notes")
+        case_response = await client.get(f"/api/v1/escalations/{case_id}", headers=auth_headers)
+        notes_response = await client.get(f"/api/v1/escalations/{case_id}/notes", headers=auth_headers)
 
     assert body["selected_agent"] == "escalation"
     assert body["event_summary"]["escalated"] is True
@@ -132,27 +158,32 @@ async def test_chat_escalation_creates_case_and_enriches_response():
 
 @pytest.mark.asyncio
 async def test_escalation_review_api_supports_list_assign_status_and_notes():
+    await _create_reviewer()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        auth_headers = await _login_reviewer(client)
         chat_response = await client.post(
             "/api/v1/chat",
             json=_payload("Please escalate this billing complaint"),
         )
         case_id = chat_response.json()["escalation_case_id"]
 
-        list_response = await client.get("/api/v1/escalations?status=open")
+        list_response = await client.get("/api/v1/escalations?status=open", headers=auth_headers)
         assign_response = await client.post(
             f"/api/v1/escalations/{case_id}/assign",
             json={"assigned_to": "reviewer-2", "actor": "lead-1", "move_to_in_review": True},
+            headers=auth_headers,
         )
         status_response = await client.post(
             f"/api/v1/escalations/{case_id}/status",
             json={"status": "approved", "actor": "reviewer-2"},
+            headers=auth_headers,
         )
         note_response = await client.post(
             f"/api/v1/escalations/{case_id}/notes",
             json={"author": "reviewer-2", "note_type": "human", "content": "Approved for follow-up."},
+            headers=auth_headers,
         )
-        notes_response = await client.get(f"/api/v1/escalations/{case_id}/notes")
+        notes_response = await client.get(f"/api/v1/escalations/{case_id}/notes", headers=auth_headers)
 
     assert list_response.status_code == 200
     assert list_response.json()["total"] >= 1
@@ -169,7 +200,9 @@ async def test_escalation_review_api_supports_list_assign_status_and_notes():
 
 @pytest.mark.asyncio
 async def test_invalid_escalation_status_transition_returns_400():
+    await _create_reviewer()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        auth_headers = await _login_reviewer(client)
         chat_response = await client.post(
             "/api/v1/chat",
             json=_payload("Escalate this complaint right now"),
@@ -178,10 +211,12 @@ async def test_invalid_escalation_status_transition_returns_400():
         await client.post(
             f"/api/v1/escalations/{case_id}/status",
             json={"status": "approved", "actor": "reviewer-1"},
+            headers=auth_headers,
         )
         invalid_response = await client.post(
             f"/api/v1/escalations/{case_id}/status",
             json={"status": "in_review", "actor": "reviewer-1"},
+            headers=auth_headers,
         )
 
     assert invalid_response.status_code == 400
@@ -190,11 +225,13 @@ async def test_invalid_escalation_status_transition_returns_400():
 
 @pytest.mark.asyncio
 async def test_escalation_observability_events_are_emitted():
+    await _create_reviewer()
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
         headers={"X-Correlation-ID": "trace-escalation-events"},
     ) as client:
+        auth_headers = await _login_reviewer(client)
         chat_response = await client.post(
             "/api/v1/chat",
             json=_payload("This is urgent, security related, and needs escalation"),
@@ -204,14 +241,17 @@ async def test_escalation_observability_events_are_emitted():
         await client.post(
             f"/api/v1/escalations/{case_id}/assign",
             json={"assigned_to": "reviewer-3", "actor": "lead-2", "move_to_in_review": True},
+            headers=auth_headers,
         )
         await client.post(
             f"/api/v1/escalations/{case_id}/status",
             json={"status": "approved", "actor": "reviewer-3"},
+            headers=auth_headers,
         )
         await client.post(
             f"/api/v1/escalations/{case_id}/notes",
             json={"author": "reviewer-3", "note_type": "human", "content": "Captured final approval note."},
+            headers=auth_headers,
         )
         trace_response = await client.get("/api/v1/observability/trace/trace-escalation-events")
 
