@@ -24,7 +24,12 @@ export default function ReportIssueForm() {
       const res = await reportIssue({ customerRef, email, title, description, priority });
       setResult(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Submission failed. Please try again.");
+      const msg = err instanceof Error ? err.message : "Submission failed. Please try again.";
+      setError(
+        msg.includes("405") || msg.toLowerCase().includes("method not allowed")
+          ? "Unable to reach the backend. Ensure NEXT_PUBLIC_API_BASE_URL is set correctly in your deployment."
+          : msg,
+      );
     } finally {
       setLoading(false);
     }

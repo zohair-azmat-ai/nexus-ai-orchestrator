@@ -43,6 +43,11 @@ function buildMessage(payload: ReportIssuePayload): string {
 export async function reportIssue(
   payload: ReportIssuePayload,
 ): Promise<ReportIssueResult> {
+  const sessionId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
+
   const response = await apiRequest<{
     escalation: boolean;
     escalation_case_id: string | null;
@@ -51,9 +56,10 @@ export async function reportIssue(
     answer: string;
   }>("/api/v1/chat", {
     method: "POST",
+    skipAuth: true,
     body: JSON.stringify({
       user_id: payload.customerRef || "anonymous",
-      session_id: crypto.randomUUID(),
+      session_id: sessionId,
       message: buildMessage(payload),
       history: [],
       metadata: {
