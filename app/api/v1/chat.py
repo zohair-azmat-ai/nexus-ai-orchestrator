@@ -201,6 +201,18 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         tools_planned=pipeline_response.tools_planned,
     )
 
+    escalated = pipeline_response.escalation_case_id is not None
+    if escalated:
+        logger.info(
+            "escalation_triggered",
+            extra={
+                "escalation_triggered": True,
+                "case_id": pipeline_response.escalation_case_id,
+                "user_id": request.user_id,
+                "correlation_id": correlation_id,
+            },
+        )
+
     return ChatResponse(
         correlation_id=pipeline_response.correlation_id,
         trace_id=pipeline_response.trace_id,
@@ -215,6 +227,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         retrieval_result_count=pipeline_response.retrieval_result_count,
         retrieval_quality=pipeline_response.retrieval_quality,
         confidence=pipeline_response.confidence,
+        escalation=escalated,
         escalation_case_id=pipeline_response.escalation_case_id,
         escalation_status=pipeline_response.escalation_status,
         memory_freshness=pipeline_response.memory_freshness,

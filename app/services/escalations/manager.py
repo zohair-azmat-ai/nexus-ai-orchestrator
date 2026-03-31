@@ -34,9 +34,17 @@ def infer_severity(reason: str) -> str:
     lower = reason.lower()
     if any(term in lower for term in {"security", "breach", "fraud", "legal", "critical"}):
         return "critical"
-    if any(term in lower for term in {"urgent", "refund", "manager", "complaint"}):
+    if any(term in lower for term in {
+        "urgent", "refund", "manager", "complaint",
+        # frustration / cancellation / repeat-issue terms always get high severity
+        "terrible", "horrible", "awful", "ridiculous", "fed up",
+        "cancel", "cancellation",
+        "not resolved", "still not", "third time", "again and again",
+        "immediately", "asap",
+        "angry", "frustrated",
+    }):
         return "high"
-    if any(term in lower for term in {"frustrated", "angry", "human"}):
+    if any(term in lower for term in {"human"}):
         return "medium"
     return "low"
 
