@@ -24,6 +24,17 @@ class SummarizerAgent(BaseAgent):
         message = ctx["request"].message
         memory: dict = ctx.get("memory", {})
         retrieval_context: str = ctx.get("retrieval_context", "")
+
+        # Produce a condensed summary of recent messages via tool before LLM/deterministic step
+        recent_messages: list = memory.get("recent_messages", [])
+        if recent_messages:
+            tool_result = await self._call_tool(
+                ctx, "summarize_conversation", messages=recent_messages
+            )
+            if tool_result and tool_result.get("summary"):
+                # Inject tool-produced summary into memory so both paths can use it
+                memory = {**memory, "summary_text": tool_result["summary"]}
+
         has_content = bool(
             memory.get("recent_messages") or memory.get("summary_text") or retrieval_context
         )

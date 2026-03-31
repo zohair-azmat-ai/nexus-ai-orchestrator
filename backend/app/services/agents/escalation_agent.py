@@ -58,6 +58,18 @@ class EscalationAgent(BaseAgent):
         reason = _detect_reason(message)
         llm_used = False
 
+        # Always fire the escalation tool to record the structured escalation event
+        escalation_data: dict = {}
+        tool_result = await self._call_tool(
+            ctx,
+            "trigger_escalation",
+            user_id=user_id,
+            reason=reason,
+            conversation_id=ctx.get("conversation_id", ""),
+        )
+        if tool_result:
+            escalation_data = tool_result
+
         if settings.openai_api_key:
             try:
                 answer = await self._llm_answer(message, retrieval_context, memory, reason)
@@ -77,7 +89,7 @@ class EscalationAgent(BaseAgent):
             ctx=ctx,
             escalation_required=True,
             reasoning_summary=f"{'llm' if llm_used else 'deterministic fallback'}; escalated due to: {reason}",
-            notes={"detected_reason": reason},
+            notes={"detected_reason": reason, **escalation_data},
         )
         ctx["answer"] = answer
         ctx["agent_result"] = result

@@ -26,6 +26,7 @@ class AgentResult:
     escalation_required: bool
     reasoning_summary: str = ""
     notes: dict[str, Any] = field(default_factory=dict)
+    tools_used: list[str] = field(default_factory=list)
 
 
 class BaseAgent(ABC):
@@ -75,4 +76,40 @@ class BaseAgent(ABC):
             escalation_required=escalation_required,
             reasoning_summary=reasoning_summary,
             notes=notes or {},
+            tools_used=list(ctx.get("tools_used", [])),
         )
+
+    async def _call_tool(
+        self,
+        ctx: OrchestratorContext,
+        tool_name: str,
+        **kwargs,
+    ) -> dict[str, Any] | None:
+        """
+        Look up tool_name in the registry, call it, record usage, return result.
+
+        Returns None and logs a warning on any failure so agents can continue.
+        The tool name is appended to ctx["tools_used"] on success.
+        """
+        # Ensure tools package is loaded (registers all tools on first import)
+        import app.services.tools  # noqa: F401
+
+        from app.services.tools.registry import tool_registry
+
+        tool = tool_registry.get(tool_name)
+        if tool is None:
+            self.logger.warning(
+                "agent.tool_not_found",
+                extra={"tool": tool_name, "agent": self.name},
+            )
+            return None
+        try:
+            result = await tool.call(**kwargs)
+            ctx.setdefault("tools_used", []).append(tool_name)
+            return result
+        except Exception as exc:
+            self.logger.warning(
+                "agent.tool_failed",
+                extra={"tool": tool_name, "agent": self.name, "error": str(exc)},
+            )
+            return None

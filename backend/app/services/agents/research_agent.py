@@ -27,6 +27,13 @@ class ResearchAgent(BaseAgent):
         memory: dict = ctx.get("memory", {})
         llm_used = False
 
+        # Supplement missing retrieval with a targeted knowledge-base search
+        if not retrieval_results and not retrieval_context:
+            tool_result = await self._call_tool(ctx, "search_knowledge_base", query=message)
+            if tool_result:
+                retrieval_context = tool_result["context"]
+                retrieval_results = tool_result["results"]
+
         if settings.openai_api_key:
             try:
                 answer = await self._llm_answer(message, retrieval_context, memory)

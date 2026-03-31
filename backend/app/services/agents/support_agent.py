@@ -26,6 +26,20 @@ class SupportAgent(BaseAgent):
         memory: dict = ctx.get("memory", {})
         llm_used = False
 
+        # Enrich memory from DB via tool when a live session is available
+        db = ctx.get("db")
+        conversation_id = ctx.get("conversation_id")
+        if db and conversation_id:
+            tool_result = await self._call_tool(
+                ctx,
+                "get_user_context",
+                db=db,
+                conversation_id=conversation_id,
+                user_id=ctx["request"].user_id,
+            )
+            if tool_result:
+                memory = tool_result
+
         if settings.openai_api_key:
             try:
                 answer = await self._llm_answer(message, retrieval_context, memory)

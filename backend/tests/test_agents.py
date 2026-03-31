@@ -372,7 +372,8 @@ async def test_summarizer_agent_calls_llm_when_content_and_key_present():
     ):
         ctx = await AGENT_REGISTRY["summarizer"].run(ctx)
 
-    mock_llm.assert_called_once()
+    # summarize_conversation tool also calls complete() internally, so >= 1
+    assert mock_llm.call_count >= 1
     assert ctx["answer"] == "LLM summary"
     assert ctx["agent_result"].confidence >= 0.9
 
