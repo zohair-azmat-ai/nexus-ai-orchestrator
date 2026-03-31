@@ -7,6 +7,7 @@ import type {
   EscalationNoteCreateRequest,
   EscalationNoteListResponse,
   EscalationStatusUpdateRequest,
+  EscalationTestCreateRequest,
 } from "@/types/escalations";
 
 interface ListEscalationsOptions {
@@ -91,5 +92,14 @@ export async function createEscalationNote(
     method: "POST",
     body: JSON.stringify(payload),
     authToken,
+  });
+}
+
+export async function createTestEscalation(
+  payload: EscalationTestCreateRequest,
+): Promise<EscalationCase> {
+  return apiRequest("/api/v1/escalations/test-create", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

@@ -50,3 +50,10 @@ class EscalationNoteCreateRequest(BaseModel):
     author: str = Field(..., min_length=1, max_length=255)
     note_type: str = Field(..., pattern="^(system|agent|human)$")
     content: str = Field(..., min_length=1, max_length=4000)
+
+
+class EscalationTestCreateRequest(BaseModel):
+    customer_ref: str = Field(..., min_length=1, max_length=255, description="Customer reference or user ID for the test case")
+    message: str = Field(..., min_length=1, max_length=2000, description="The escalation reason / message that triggered review")
+    severity: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+    channel: str = Field(default="test", max_length=100, description="Optional channel label (e.g. chat, email, test)")

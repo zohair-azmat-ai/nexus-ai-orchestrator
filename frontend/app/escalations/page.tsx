@@ -7,6 +7,7 @@ import DashboardAuthActions from "@/components/auth/DashboardAuthActions";
 import BackendUnavailable from "@/components/escalations/BackendUnavailable";
 import DashboardShell from "@/components/escalations/DashboardShell";
 import EscalationQueue from "@/components/escalations/EscalationQueue";
+import TestEscalationPanel from "@/components/escalations/TestEscalationPanel";
 import { getCurrentUser } from "@/lib/auth";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/api";
@@ -69,6 +70,10 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
         <AccessDenied message="Reviewer or admin access is required to view escalation cases." />
       ) : (
         <>
+      <div className="mb-5">
+        <TestEscalationPanel />
+      </div>
+
       <section className="mb-5 rounded-2xl border border-white/10 bg-slate-950/60 p-5">
         <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <label className="text-sm text-slate-300">
