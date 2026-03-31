@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/nexus-ai-logo.png" alt="Nexus AI Logo" width="240" />
+  <img src="docs/assets/nexus-ai-logo-large.png" width="280" />
 </p>
 
 <h1 align="center">Nexus AI</h1>
