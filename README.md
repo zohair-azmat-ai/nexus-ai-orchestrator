@@ -1,8 +1,16 @@
 <p align="center">
-  <img src="docs/assets/nexus-ai-logo.png" alt="Nexus AI Logo" width="170" />
+  <img src="docs/assets/nexus-ai-logo.png" alt="Nexus AI Logo" width="240" />
 </p>
 
 <h1 align="center">Nexus AI</h1>
+
+<p align="center">
+  <b>By Zohair Azmat</b>
+</p>
+
+<p align="center">
+  AI Engineer | Full Stack Developer
+</p>
 
 <p align="center">
   <strong>Multi-Agent RAG Orchestration Platform</strong>
@@ -87,17 +95,19 @@ flowchart LR
     MEM --> OBS
     ORCH --> REVIEW
 
-    classDef blue fill:#153a75,stroke:#60a5fa,color:#eaf2ff,stroke-width:2px;
-    classDef purple fill:#4c1d95,stroke:#c084fc,color:#f5ecff,stroke-width:2px;
-    classDef green fill:#14532d,stroke:#4ade80,color:#ecfff3,stroke-width:2px;
-    classDef orange fill:#7c2d12,stroke:#fb923c,color:#fff4ea,stroke-width:2px;
-    classDef red fill:#7f1d1d,stroke:#f87171,color:#fff0f0,stroke-width:2px;
+    classDef api fill:#2563eb,stroke:#1e3a8a,color:#ffffff,stroke-width:2px;
+    classDef agent fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px;
+    classDef db fill:#16a34a,stroke:#14532d,color:#ffffff,stroke-width:2px;
+    classDef tools fill:#ea580c,stroke:#7c2d12,color:#ffffff,stroke-width:2px;
+    classDef obs fill:#dc2626,stroke:#7f1d1d,color:#ffffff,stroke-width:2px;
+    classDef user fill:#0f172a,stroke:#475569,color:#f8fafc,stroke-width:2px;
 
-    class U,API,LLM blue;
-    class ORCH,AGENTS purple;
-    class MEM,PG green;
-    class RET,QD,TOOLS,JOBS orange;
-    class OBS,HITL,REVIEW red;
+    class U user;
+    class API,LLM api;
+    class ORCH,AGENTS agent;
+    class MEM,PG db;
+    class RET,QD,TOOLS,JOBS tools;
+    class OBS,HITL,REVIEW obs;
 ```
 
 ## Key Features
@@ -130,29 +140,31 @@ flowchart LR
 - Async jobs support document ingestion, memory summarization, and analytics aggregation.
 - Tool calls and job execution remain observable and testable without requiring live external services.
 
-## Repository Structure
+## Project Structure
 
 ```text
-nexus-ai/
-|-- README.md
-|-- docs/
-|   |-- assets/
-|   |-- architecture.md
-|   |-- api-contracts.md
-|   `-- dev-status.md
-|-- backend/
-|   |-- README.md
-|   |-- app/
-|   |   |-- api/v1/
-|   |   |-- core/
-|   |   |-- db/
-|   |   |-- schemas/
-|   |   `-- services/
-|   `-- tests/
-`-- frontend/
-    |-- app/
-    |-- components/
-    `-- public/
+backend/
+  app/
+  evals/
+  evals_data/
+  tests/
+
+frontend/
+  app/
+  components/
+  lib/
+  public/
+
+docs/
+  architecture.md
+  api-contracts.md
+  deployment.md
+  dev-status.md
+
+specs/
+prompt_history/
+docker-compose.yml
+docker-compose.prod.yml
 ```
 
 ## Testing
