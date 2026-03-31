@@ -1,0 +1,87 @@
+[
+  {
+    "case_id": "agent-support-basic",
+    "category": "support",
+    "input": "How do I reset my password?",
+    "expected_behavior": "straightforward support request should stay support and single-step",
+    "expected_agent": "support",
+    "expected_execution_mode": "single_step",
+    "expected_escalated": false,
+    "expected_tools_planned": [],
+    "notes": "Basic support triage baseline."
+  },
+  {
+    "case_id": "agent-research-docs",
+    "category": "research",
+    "input": "Explain the operating model in the docs",
+    "retrieval_results": [
+      {
+        "chunk_id": "research-1",
+        "document_id": "architecture-doc",
+        "chunk_index": 0,
+        "text": "The architecture docs explain orchestrator stages, memory loading, retrieval assessment, and agent routing for grounded responses.",
+        "score": 0.83,
+        "source": "architecture.md"
+      }
+    ],
+    "expected_behavior": "doc explanation request should route to research",
+    "expected_agent": "research",
+    "expected_execution_mode": "single_step",
+    "expected_escalated": false,
+    "expected_tools_planned": [],
+    "notes": "This should not become a planning flow."
+  },
+  {
+    "case_id": "agent-summarizer",
+    "category": "summarizer",
+    "input": "Summarize our discussion so far",
+    "history": [
+      {
+        "role": "user",
+        "content": "We discussed the roadmap, benchmarks, and reviewer dashboard rollout."
+      },
+      {
+        "role": "assistant",
+        "content": "I outlined the phases and key risks."
+      }
+    ],
+    "expected_behavior": "explicit summary request should route to summarizer",
+    "expected_agent": "summarizer",
+    "expected_execution_mode": "single_step",
+    "expected_escalated": false,
+    "expected_tools_planned": [],
+    "notes": "Summarizer routing baseline."
+  },
+  {
+    "case_id": "agent-planner-multistep",
+    "category": "planner",
+    "input": "Analyze the architecture docs and make an implementation roadmap",
+    "retrieval_results": [
+      {
+        "chunk_id": "planner-1",
+        "document_id": "architecture-doc",
+        "chunk_index": 0,
+        "text": "The architecture docs describe modular service boundaries, staging, and integration checkpoints needed for implementation planning.",
+        "score": 0.88,
+        "source": "architecture.md"
+      }
+    ],
+    "expected_behavior": "complex planning request should become a multi-step planner flow",
+    "expected_agent": "planner",
+    "expected_execution_mode": "multi_step",
+    "expected_escalated": false,
+    "expected_tools_planned": [],
+    "notes": "The planner should choose a multi-step execution path."
+  },
+  {
+    "case_id": "agent-escalation",
+    "category": "escalation",
+    "input": "This is urgent and I need a human manager immediately",
+    "expected_behavior": "strong escalation language should route directly to escalation",
+    "expected_agent": "escalation",
+    "expected_execution_mode": "single_step",
+    "expected_escalated": true,
+    "expected_tools_planned": ["trigger_escalation"],
+    "notes": "Escalation routing and plan tool recommendation baseline."
+  }
+]

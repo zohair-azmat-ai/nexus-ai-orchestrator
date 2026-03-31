@@ -1,0 +1,147 @@
+[
+  {
+    "case_id": "regression-simple-support",
+    "category": "simple_qa",
+    "input": "How can I update my account email?",
+    "expected_behavior": "simple support requests should remain single-step support responses",
+    "expected_agent": "support",
+    "expected_execution_mode": "single_step",
+    "expected_retrieval_quality": "none",
+    "expected_memory_freshness": "empty",
+    "expected_escalated": false,
+    "expected_memory_used": false,
+    "expected_retrieval_used": false,
+    "expected_response_fields": [
+      "selected_agent",
+      "execution_mode",
+      "retrieval_quality",
+      "memory_freshness",
+      "event_summary",
+      "tools_planned"
+    ],
+    "notes": "Protects the default support path."
+  },
+  {
+    "case_id": "regression-retrieval-backed",
+    "category": "retrieval",
+    "input": "Explain the operating model from the docs",
+    "retrieval_results": [
+      {
+        "chunk_id": "reg-retrieval-1",
+        "document_id": "ops-doc",
+        "chunk_index": 0,
+        "text": "The operating model documentation explains that Nexus AI routes requests through intake, memory, retrieval, triage, and response stages before escalation when needed.",
+        "score": 0.69,
+        "source": "operations.md"
+      }
+    ],
+    "expected_behavior": "doc-backed research question should keep weak retrieval metadata stable",
+    "expected_agent": "research",
+    "expected_execution_mode": "single_step",
+    "expected_retrieval_quality": "weak",
+    "expected_memory_freshness": "empty",
+    "expected_escalated": false,
+    "expected_memory_used": false,
+    "expected_retrieval_used": true,
+    "expected_response_fields": [
+      "selected_agent",
+      "execution_mode",
+      "retrieval_quality",
+      "retrieval_used",
+      "context_sources_used",
+      "plan_summary"
+    ],
+    "notes": "Catches regressions in retrieval metadata and research routing."
+  },
+  {
+    "case_id": "regression-memory-followup",
+    "category": "memory",
+    "input": "What did I just ask?",
+    "history": [
+      {
+        "role": "user",
+        "content": "Please summarize the benchmark rollout plan."
+      },
+      {
+        "role": "assistant",
+        "content": "We covered retrieval, memory, agent, and regression benchmarks."
+      }
+    ],
+    "expected_behavior": "simple follow-up should rely on recent memory and skip retrieval",
+    "expected_agent": "support",
+    "expected_execution_mode": "single_step",
+    "expected_retrieval_quality": "none",
+    "expected_memory_freshness": "recent_only",
+    "expected_escalated": false,
+    "expected_memory_used": true,
+    "expected_retrieval_used": false,
+    "expected_response_fields": [
+      "selected_agent",
+      "memory_used",
+      "memory_freshness",
+      "retrieval_used",
+      "context_compaction_applied"
+    ],
+    "notes": "Protects recent-memory prioritization."
+  },
+  {
+    "case_id": "regression-planner-multistep",
+    "category": "planning",
+    "input": "Analyze the architecture docs and make an implementation roadmap",
+    "retrieval_results": [
+      {
+        "chunk_id": "reg-plan-1",
+        "document_id": "architecture-doc",
+        "chunk_index": 0,
+        "text": "The architecture docs explain modular boundaries, sequencing, and validation checkpoints that planning should account for.",
+        "score": 0.89,
+        "source": "architecture.md"
+      },
+      {
+        "chunk_id": "reg-plan-2",
+        "document_id": "roadmap-doc",
+        "chunk_index": 1,
+        "text": "The roadmap docs list phased milestones, dependency sequencing, and review gates for implementation planning.",
+        "score": 0.85,
+        "source": "roadmap.md"
+      }
+    ],
+    "expected_behavior": "complex implementation prompt should remain a multi-step planning flow",
+    "expected_agent": "planner",
+    "expected_execution_mode": "multi_step",
+    "expected_retrieval_quality": "strong",
+    "expected_memory_freshness": "empty",
+    "expected_escalated": false,
+    "expected_memory_used": false,
+    "expected_retrieval_used": true,
+    "expected_response_fields": [
+      "selected_agent",
+      "execution_mode",
+      "executed_steps_count",
+      "tools_planned",
+      "execution_plan_summary"
+    ],
+    "notes": "Protects planner behavior and multi-step orchestration."
+  },
+  {
+    "case_id": "regression-escalation",
+    "category": "escalation",
+    "input": "This is urgent and I need a human manager immediately",
+    "expected_behavior": "strong escalation language should keep HITL signaling stable",
+    "expected_agent": "escalation",
+    "expected_execution_mode": "single_step",
+    "expected_retrieval_quality": "none",
+    "expected_memory_freshness": "empty",
+    "expected_escalated": true,
+    "expected_memory_used": false,
+    "expected_retrieval_used": false,
+    "expected_response_fields": [
+      "selected_agent",
+      "execution_mode",
+      "escalation_case_id",
+      "escalation_status",
+      "event_summary"
+    ],
+    "notes": "Protects escalation flags and response shape."
+  }
+]
