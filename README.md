@@ -1,40 +1,57 @@
 <p align="center">
-  <img src="docs/assets/nexus-ai-logo-large.png" width="600" />
+  <img src="docs/assets/nexus-ai-logo-large.png" width="900" />
 </p>
 
 <h1 align="center">Nexus AI</h1>
 
-<p align="center">
-  <strong>By Zohair Azmat</strong> &nbsp;·&nbsp; AI Engineer | Full Stack Developer
-</p>
+<h3 align="center">Multi-Agent RAG Orchestration Platform</h3>
 
 <p align="center">
-  <em>Multi-Agent RAG Orchestration Platform</em>
-</p>
-
-<p align="center">
-  <strong>From Retrieval to Reasoning to Action — A Full AI Orchestration System</strong>
+  Production-grade AI system with memory, retrieval, planning, observability, and human-in-the-loop workflows.
 </p>
 
 <br/>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Status-Active%20Development-2563eb?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Phase-7%20of%207%20Complete-e11d48?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-160%20Passing-15803d?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Evals-18%2F18-7c3aed?style=for-the-badge" />
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/FastAPI-0f766e?style=flat-square&logo=fastapi&logoColor=white" />
+  &nbsp;
   <img src="https://img.shields.io/badge/Next.js-111827?style=flat-square&logo=nextdotjs&logoColor=white" />
+  &nbsp;
   <img src="https://img.shields.io/badge/PostgreSQL-16a34a?style=flat-square&logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/Qdrant-f59e0b?style=flat-square" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Qdrant-f59e0b?style=flat-square&logoColor=white" />
+  &nbsp;
   <img src="https://img.shields.io/badge/OpenAI-7c3aed?style=flat-square&logo=openai&logoColor=white" />
+  &nbsp;
   <img src="https://img.shields.io/badge/Docker-2563eb?style=flat-square&logo=docker&logoColor=white" />
 </p>
 
-<br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Active%20Development-2563eb?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Phase-7%20of%207%20Complete-e11d48?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Tests-160%20Passing-15803d?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Evals-18%2F18-7c3aed?style=for-the-badge" />
+</p>
+
+---
+
+## System Status
+
+| Component | Status |
+|:---|:---|
+| Backend API | ✅ Ready |
+| Orchestrator Engine | ✅ Active |
+| Agent Layer (5 agents) | ✅ Active |
+| Memory Layer | ✅ Enabled |
+| Retrieval / Qdrant | ✅ Enabled |
+| Async Job System | ✅ Enabled |
+| HITL Escalation Workflow | ✅ Enabled |
+| Observability + Tracing | ✅ Enabled |
+| Auth & Role Protection | ✅ Enabled |
+| CI / Docker Deployment | ✅ Ready |
 
 ---
 
@@ -42,23 +59,29 @@
 
 Nexus AI is a production-style AI orchestration platform — not a chatbot wrapper.
 
-It combines a staged FastAPI orchestrator, persistent memory, vector retrieval, specialized agents, tool-assisted execution, background jobs, observability, and a human-in-the-loop review workflow into a single backend-first operating layer for serious AI applications.
+It combines a staged FastAPI orchestrator, persistent memory, Qdrant-backed vector retrieval, specialized agents, tool-assisted execution, background jobs, full observability, and a human-in-the-loop review workflow into a single backend-first operating layer for serious AI applications.
 
-The project answers a harder question than "how do we chat with an LLM?" It asks: how do you build an AI system that routes intelligently, stays grounded, remembers the right things, traces every execution stage, and hands off to humans when risk is high?
+The project addresses a harder problem than "how do we chat with an LLM?" — it asks how to build an AI system that routes intelligently, stays grounded in retrieved context, remembers the right things, traces every execution stage, and safely escalates when confidence is low or risk is high.
 
 ---
 
 ## Why Nexus AI Is Different
 
-- **Not a wrapper.** Full orchestration engine with staged pipeline execution.
-- **Retrieval + Memory + Agents.** All three layers work together in one runtime path.
-- **Production-grade visibility.** Traces, metrics, enriched events, and stage timings are built into the core execution path — not bolted on.
-- **Real HITL.** Human-in-the-loop escalation creates persistent review cases, not transient runtime signals.
-- **Built to evolve.** Structured from the start to scale from assistant workflows toward more autonomous AI operating systems.
+| Feature | Why It Matters |
+|:---|:---|
+| Multi-agent orchestration | Specialized agents route, plan, research, summarize, and escalate — not a monolithic prompt |
+| Tool execution layer | AI can act on context, not just respond to it |
+| Persistent memory | Every conversation is context-aware with freshness scoring and summary reuse |
+| Retrieval system | Answers are grounded in indexed knowledge with quality-scored context, not hallucinated |
+| Multi-step planning | Complex requests expand into explainable, dependency-tracked execution plans |
+| Full observability | Every request carries trace IDs, stage timings, enriched events, and audit logs |
+| HITL workflow | Escalations become persistent review cases — not silent failures or transient signals |
+| Auth & roles | Reviewer and admin roles protect sensitive APIs and the review dashboard |
+| Evaluation suite | 18 deterministic benchmark cases validate orchestration behavior on every run |
 
 ---
 
-## System Snapshot
+## System Metrics
 
 | Metric | Value |
 |:---|:---|
@@ -69,30 +92,88 @@ The project answers a harder question than "how do we chat with an LLM?" It asks
 | Execution Model | Single-step + Multi-step planning |
 | Memory Layer | Persistent conversations + summaries + freshness heuristics |
 | Retrieval Stack | Qdrant vector search + embeddings + quality scoring |
-| HITL Workflow | Enabled — persistent review cases, assignment, notes, audit trail |
+| HITL Workflow | Persistent review cases + assignment + notes + audit trail |
 | Observability | Trace IDs + stage timings + enriched event log + metrics endpoint |
 | Auth & Roles | Reviewer and admin roles with protected APIs and login UI |
 
 ---
 
-## System Capabilities
+## Latest Capabilities
 
-| Capability | What It Enables |
-|:---|:---|
-| **Retrieval (RAG)** | Grounded answers using indexed knowledge and quality-scored context |
-| **Memory** | Persistent conversations, summaries, freshness heuristics, context reuse |
-| **Multi-Agent Routing** | Support, research, planner, summarizer, and escalation agent paths |
-| **Tool Execution** | Structured tool invocation for context lookup, retrieval, and escalation |
-| **Async Jobs** | Background ingestion, summary generation, and analytics aggregation |
-| **Observability** | Trace IDs, metrics, stage timings, event logs, and auditability |
-| **HITL Escalation** | Persistent review cases, assignment, notes, status changes, and reviewer UI |
-| **Auth & Roles** | Protected reviewer APIs with role-based access control |
+### Multi-Agent Orchestration
+
+Five specialized agents handle distinct execution roles: **support**, **research**, **planning**, **summarization**, and **escalation**. The orchestrator routes every request through the right agent path based on intent, context, and confidence signals.
+
+### Intelligent Planning
+
+The planner engine generates deterministic single-step or multi-step execution plans. Complex requests expand into chained steps with dependency tracking, context injection, tool recommendations, and skip logic. Simple requests stay lean.
+
+### Context-Aware Memory
+
+Every conversation builds a persistent memory layer with summary compression, freshness heuristics, and recent-turn prioritization. Memory informs retrieval decisions — stale context is flagged, fresh context is reused.
+
+### Grounded Retrieval
+
+Qdrant-backed vector search returns quality-scored context chunks. Retrieval quality signals (strong / weak / none) adjust response posture and memory-retrieval interaction dynamically. Weak retrieval triggers appropriate hedging.
+
+### Human-in-the-Loop Escalation
+
+Low-confidence or high-risk requests escalate into persistent HITL review cases. Reviewers can assign cases, add notes, change status, and close with audit trail — managed via a dedicated frontend dashboard.
+
+### Full Observability
+
+Every request carries a `trace_id`. Stage timings, enriched events, grounding signals, planning metadata, job status, and escalation activity are all logged and queryable through internal metrics and trace endpoints.
+
+### Auth & Role-Based Access
+
+Reviewer and admin roles protect escalation APIs and the reviewer dashboard. JWT-based authentication with role enforcement across all protected backend routes.
+
+### Evaluation Suite
+
+18 deterministic benchmark cases cover retrieval quality, memory quality, agent selection, and regression stability. The eval runner produces saved reports for CI visibility and continuous quality tracking.
 
 ---
 
-## Architecture Summary
+## Core Features
 
-Nexus AI is organized around a backend-first orchestration core. The API receives requests, the orchestrator decides how much context and execution is needed, agents and tools produce grounded output, background jobs handle longer-running work, observability captures the full trail, and escalated cases move into a persistent human review workflow.
+### AI System
+
+| Feature | Description |
+|:---|:---|
+| Multi-agent routing | Support, research, planner, summarizer, and escalation agent paths |
+| Multi-step planning | Deterministic chaining, dependency tracking, skip logic, and context injection |
+| Retrieval quality scoring | Strong / weak / none grounding signals with adaptive response posture |
+| Memory freshness heuristics | Stale context flagging, summary reuse, recent-turn prioritization |
+| HITL escalation | Persistent review cases with assignment, notes, status, and audit trail |
+| Evaluation suite | 18 deterministic benchmark cases with saved run reports |
+
+### Backend
+
+| Feature | Description |
+|:---|:---|
+| Staged orchestrator | Isolated pipeline stages with shared execution context |
+| Tool registry | Structured tool invocation for retrieval, memory, and escalation |
+| Async job system | Background ingestion, memory summarization, analytics aggregation |
+| Observability | Trace IDs, stage timings, enriched event log, and metrics endpoint |
+| Auth & roles | JWT auth with reviewer and admin role enforcement |
+| Health endpoints | Readiness and liveness checks for production deployment |
+
+### Platform
+
+| Feature | Description |
+|:---|:---|
+| Docker deployment | Compose-based deployment for development and production |
+| CI pipeline | GitHub Actions for test and validation automation |
+| Environment validation | Startup checks for required environment variables |
+| Production Compose | Separate production override for hardened deployments |
+| Reviewer dashboard | Next.js frontend with HITL case management and login flow |
+| Eval runner | Standalone eval CLI with `--suite` selection and `--save-report` |
+
+---
+
+## Architecture
+
+Nexus AI is organized around a backend-first orchestration core. The API receives requests, the orchestrator decides execution scope, agents and tools produce grounded output, background jobs handle longer-running work, observability captures the full trail, and escalated cases move into a persistent human review workflow.
 
 ```mermaid
 flowchart TD
@@ -127,17 +208,48 @@ flowchart TD
     RET --> OBS
     MEM --> OBS
 
-    classDef user        fill:#0f172a,stroke:#64748b,color:#f8fafc,stroke-width:2px;
-    classDef api         fill:#2563eb,stroke:#1e40af,color:#ffffff,stroke-width:2px;
+    classDef user         fill:#0f172a,stroke:#64748b,color:#f8fafc,stroke-width:2px;
+    classDef api          fill:#2563eb,stroke:#1e40af,color:#ffffff,stroke-width:2px;
     classDef orchestrator fill:#7c3aed,stroke:#4c1d95,color:#ffffff,stroke-width:2px;
-    classDef agent       fill:#6d28d9,stroke:#4c1d95,color:#ffffff,stroke-width:2px;
-    classDef memory      fill:#16a34a,stroke:#14532d,color:#ffffff,stroke-width:2px;
-    classDef db          fill:#15803d,stroke:#14532d,color:#ffffff,stroke-width:2px;
-    classDef retrieval   fill:#d97706,stroke:#92400e,color:#ffffff,stroke-width:2px;
-    classDef tools       fill:#ea580c,stroke:#7c2d12,color:#ffffff,stroke-width:2px;
-    classDef obs         fill:#dc2626,stroke:#7f1d1d,color:#ffffff,stroke-width:2px;
-    classDef escalation  fill:#be123c,stroke:#881337,color:#ffffff,stroke-width:2px;
+    classDef agent        fill:#6d28d9,stroke:#4c1d95,color:#ffffff,stroke-width:2px;
+    classDef memory       fill:#16a34a,stroke:#14532d,color:#ffffff,stroke-width:2px;
+    classDef db           fill:#15803d,stroke:#14532d,color:#ffffff,stroke-width:2px;
+    classDef retrieval    fill:#d97706,stroke:#92400e,color:#ffffff,stroke-width:2px;
+    classDef tools        fill:#ea580c,stroke:#7c2d12,color:#ffffff,stroke-width:2px;
+    classDef obs          fill:#dc2626,stroke:#7f1d1d,color:#ffffff,stroke-width:2px;
+    classDef escalation   fill:#be123c,stroke:#881337,color:#ffffff,stroke-width:2px;
 ```
+
+---
+
+## Tech Stack
+
+### Frontend
+
+| Technology | Purpose |
+|:---|:---|
+| Next.js 14 | App router, server components, reviewer dashboard UI |
+| TypeScript | Type-safe frontend across components and API calls |
+| Tailwind CSS | Utility-first styling for reviewer and chat interfaces |
+
+### Backend
+
+| Technology | Purpose |
+|:---|:---|
+| FastAPI | Async Python API framework with typed schemas and route groups |
+| SQLAlchemy | ORM for conversations, events, jobs, escalation, and auth state |
+| PostgreSQL | Primary persistence for all structured platform data |
+| Alembic | Database migration management |
+| PyJWT | JWT authentication for reviewer and admin role enforcement |
+
+### AI / Data
+
+| Technology | Purpose |
+|:---|:---|
+| OpenAI API | LLM inference for agent reasoning, planning, and summarization |
+| Qdrant | Vector database for document indexing and retrieval |
+| Embeddings | Dense vector representations for semantic retrieval scoring |
+| Custom eval runner | Deterministic benchmark suite for orchestration regression testing |
 
 ---
 
@@ -162,28 +274,9 @@ flowchart TD
   HITL escalation workflow + dashboard UI, authentication and roles, evaluation suite.
 
 - [x] **Phase 7 — Deployment + Production Polish**  
-  Environment validation, Docker and Compose setup, CI/CD pipeline, health and readiness endpoints, deployment documentation.
+  Environment validation, Docker and Compose setup, CI/CD pipeline, health endpoints, deployment documentation.
 
 > All 7 phases complete. Nexus AI is a production-ready AI orchestration platform.
-
----
-
-## Key Features
-
-**Deterministic Planning**  
-Simple requests stay single-step. Complex requests expand into explainable multi-step plans with dependency tracking and skip logic.
-
-**Context Discipline**  
-Retrieval and memory are filtered, compacted, and routed intentionally. Raw context is never blindly dumped into prompts.
-
-**Grounded Response Behavior**  
-Confidence and answer posture adapt to retrieval quality and memory freshness signals.
-
-**Production-Style Visibility**  
-Traces, metrics, enriched events, and stage timings are built into the execution path and auditable via API.
-
-**HITL-Ready Operations**  
-Escalations create persistent review cases with assignment, notes, status tracking, and full audit history.
 
 ---
 
@@ -282,7 +375,7 @@ pytest tests -q
 ```
 
 - `160+` backend tests passing
-- Coverage: orchestration, planning, retrieval quality, memory freshness, agents, tools, jobs, observability, escalation workflow
+- Coverage across orchestration, planning, retrieval quality, memory freshness, agents, tools, jobs, observability, and escalation workflow
 - In-memory and mocked paths for fast, deterministic CI execution
 
 ---
@@ -340,6 +433,10 @@ For the latest implementation snapshot see [docs/dev-status.md](docs/dev-status.
 | [docs/dev-status.md](docs/dev-status.md) | Current implementation snapshot |
 
 ---
+
+<p align="center">
+  Built by <strong>Zohair Azmat</strong> &nbsp;·&nbsp; AI Engineer | Full Stack Developer
+</p>
 
 ## License
 
