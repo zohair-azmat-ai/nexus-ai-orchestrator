@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { API_URL } from "@/lib/api";
 
 export default function Hero() {
@@ -32,11 +33,17 @@ export default function Hero() {
       </div>
 
       <div className="flex flex-wrap justify-center gap-4">
+        <Link
+          href="/report"
+          className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-medium transition-colors"
+        >
+          Report an Issue
+        </Link>
         <a
           href={`${API_URL}/docs`}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-medium transition-colors"
+          className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg font-medium border border-gray-700 transition-colors"
         >
           API Explorer
         </a>

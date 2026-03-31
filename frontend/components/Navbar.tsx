@@ -16,7 +16,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-6 text-sm text-gray-400">
           <Link href="#features" className="hover:text-white transition-colors">Features</Link>
-          <Link href="#architecture" className="hover:text-white transition-colors">Architecture</Link>
+          <Link href="/report" className="hover:text-white transition-colors">Report Issue</Link>
           <Link href="/escalations" className="hover:text-white transition-colors">Escalations</Link>
           <NavAuthLink />
           <a
