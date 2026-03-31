@@ -7,7 +7,6 @@ import type {
   EscalationNoteCreateRequest,
   EscalationNoteListResponse,
   EscalationStatusUpdateRequest,
-  EscalationTestCreateRequest,
 } from "@/types/escalations";
 
 interface ListEscalationsOptions {
@@ -95,11 +94,67 @@ export async function createEscalationNote(
   });
 }
 
-export async function createTestEscalation(
-  payload: EscalationTestCreateRequest,
-): Promise<EscalationCase> {
-  return apiRequest("/api/v1/escalations/test-create", {
+export interface TestEscalationPayload {
+  customer_ref: string;
+  message: string;
+  severity: string;
+}
+
+export interface TestEscalationResult {
+  caseId: string | null;
+  caseStatus: string | null;
+  escalated: boolean;
+  answer: string;
+}
+
+function buildTestMessage(payload: TestEscalationPayload): string {
+  const severityPrefix =
+    payload.severity === "critical"
+      ? "[CRITICAL] "
+      : payload.severity === "high"
+        ? "[URGENT] "
+        : "";
+
+  let msg = `${severityPrefix}${payload.message}`;
+
+  if (payload.severity === "high" || payload.severity === "critical") {
+    msg += "\n\nThis issue requires immediate attention and escalation to human review.";
+  }
+
+  return msg;
+}
+
+export async function triggerTestEscalation(
+  payload: TestEscalationPayload,
+): Promise<TestEscalationResult> {
+  const response = await apiRequest<{
+    escalation: boolean;
+    escalation_case_id: string | null;
+    escalation_status: string | null;
+    conversation_id: string;
+    answer: string;
+  }>("/api/v1/chat", {
     method: "POST",
-    body: JSON.stringify(payload),
+    skipAuth: true,
+    body: JSON.stringify({
+      user_id: payload.customer_ref || "admin-test",
+      session_id:
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : Date.now().toString(36) + Math.random().toString(36).slice(2),
+      message: buildTestMessage(payload),
+      history: [],
+      metadata: {
+        source: "admin_test",
+        severity: payload.severity,
+      },
+    }),
   });
+
+  return {
+    caseId: response.escalation_case_id,
+    caseStatus: response.escalation_status,
+    escalated: response.escalation,
+    answer: response.answer,
+  };
 }

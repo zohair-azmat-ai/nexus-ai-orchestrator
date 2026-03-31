@@ -69,10 +69,3 @@ export interface EscalationNoteCreateRequest {
   content: string;
   note_type: EscalationNoteType;
 }
-
-export interface EscalationTestCreateRequest {
-  customer_ref: string;
-  message: string;
-  severity: EscalationSeverity;
-  channel: string;
-}
