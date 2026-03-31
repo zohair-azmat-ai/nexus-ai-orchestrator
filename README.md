@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/nexus-ai-logo-large.png" width="900" />
+  <img src="docs/assets/nexus-ai-banner.png" width="850" />
 </p>
 
 <h1 align="center">Nexus AI</h1>
@@ -81,20 +81,27 @@ The project addresses a harder problem than "how do we chat with an LLM?" — it
 
 ---
 
-## System Metrics
+## System Snapshot
 
-| Metric | Value |
-|:---|:---|
-| Backend Tests Passing | `160+` |
-| Evaluation Cases | `18 / 18` passing |
-| Phases Completed | `7 / 7` |
-| Active Specialized Agents | `5` |
-| Execution Model | Single-step + Multi-step planning |
-| Memory Layer | Persistent conversations + summaries + freshness heuristics |
-| Retrieval Stack | Qdrant vector search + embeddings + quality scoring |
-| HITL Workflow | Persistent review cases + assignment + notes + audit trail |
-| Observability | Trace IDs + stage timings + enriched event log + metrics endpoint |
-| Auth & Roles | Reviewer and admin roles with protected APIs and login UI |
+<p align="center">
+  <img src="https://img.shields.io/badge/Tests-160%2B%20Passing-15803d?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Evals-18%2F18-2563eb?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Phases-7%2F7%20Complete-7c3aed?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Agents-5%20Active-ea580c?style=for-the-badge" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Memory-Persistent%20%2B%20Summaries-16a34a?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/RAG-Qdrant%20%2B%20Embeddings-d97706?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/HITL-Enabled-dc2626?style=for-the-badge" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Observability-Active-6d28d9?style=for-the-badge" />
+</p>
 
 ---
 
@@ -255,28 +262,17 @@ flowchart TD
 
 ## Development Progress
 
-- [x] **Phase 1 — Foundation**  
-  FastAPI service structure, project scaffolding, and base orchestrator.
+| Phase | Description | Status |
+|:---:|:---|:---:|
+| Phase 1 | Foundation — FastAPI scaffolding, project structure, base orchestrator | 🟢 Complete |
+| Phase 2 | Database + RAG — PostgreSQL, Qdrant, ingestion, indexing, retrieval | 🟢 Complete |
+| Phase 3 | Agents + LLM + Tools — multi-agent routing, LLM integration, tool execution | 🟢 Complete |
+| Phase 4 | Async Jobs + Observability — background jobs, tracing, event logging, metrics | 🟢 Complete |
+| Phase 5 | Planning + Intelligence — multi-step execution, smart planning, quality optimization | 🟢 Complete |
+| Phase 6 | Production Features — HITL workflow, dashboard UI, auth and roles, eval suite | 🟢 Complete |
+| Phase 7 | Deployment + Polish — Docker, CI/CD, environment validation, health endpoints | 🟢 Complete |
 
-- [x] **Phase 2 — Database + RAG**  
-  PostgreSQL, Qdrant, ingestion, indexing, and retrieval pipeline.
-
-- [x] **Phase 3 — Agents + LLM + Tools**  
-  Multi-agent routing, LLM integration, and structured tool execution.
-
-- [x] **Phase 4 — Async Jobs + Observability**  
-  Background jobs, tracing, event logging, and metrics.
-
-- [x] **Phase 5 — Planning + Intelligence**  
-  Multi-step execution, smart planning, retrieval and memory quality optimization.
-
-- [x] **Phase 6 — Production Features**  
-  HITL escalation workflow + dashboard UI, authentication and roles, evaluation suite.
-
-- [x] **Phase 7 — Deployment + Production Polish**  
-  Environment validation, Docker and Compose setup, CI/CD pipeline, health endpoints, deployment documentation.
-
-> All 7 phases complete. Nexus AI is a production-ready AI orchestration platform.
+> ✅ All phases completed — Nexus AI is now a production-ready AI orchestration platform.
 
 ---
 
