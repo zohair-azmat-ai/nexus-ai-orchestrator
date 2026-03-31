@@ -14,10 +14,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-active%20development-2563eb?style=for-the-badge" alt="Status badge" />
-  <img src="https://img.shields.io/badge/phase-6.4%20HITL-e11d48?style=for-the-badge" alt="Phase badge" />
+  <img src="https://img.shields.io/badge/phase-7.0%20Deployment-e11d48?style=for-the-badge" alt="Phase badge" />
   <img src="https://img.shields.io/badge/backend-FastAPI-0f766e?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend badge" />
   <img src="https://img.shields.io/badge/frontend-Next.js-111827?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Frontend badge" />
-  <img src="https://img.shields.io/badge/tests-159%20passing-15803d?style=for-the-badge" alt="Tests badge" />
+  <img src="https://img.shields.io/badge/tests-160%20passing-15803d?style=for-the-badge" alt="Tests badge" />
 </p>
 
 <p align="center">
@@ -52,6 +52,7 @@ The project exists to answer a harder question than "how do we chat with an LLM?
 - Human-in-the-loop escalation workflow with persistent cases, notes, assignment, status changes, and audit events.
 - Reviewer/admin authentication with protected reviewer APIs and a frontend login flow.
 - Deterministic evaluation suites for retrieval quality, memory quality, agent selection, and regression stability.
+- Production readiness improvements for environment validation, Docker deployment, CI, and readiness checks.
 
 ## Architecture Summary
 
@@ -158,7 +159,7 @@ nexus-ai/
 
 The backend test suite is designed to run without live OpenAI, Qdrant, or PostgreSQL dependencies. The current repository state includes:
 
-- `159` backend tests passing.
+- `160` backend tests passing.
 - Coverage for orchestration, planning, retrieval quality, memory freshness, jobs, observability, tools, and escalation workflow.
 - In-memory and mocked test paths that keep development fast and deterministic.
 
@@ -208,6 +209,7 @@ npm run dev
 ```
 
 Set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` if your backend is not running on `http://localhost:8000`.
+For containerized Next.js deployments, you can also set `INTERNAL_API_BASE_URL` so server-side requests use an internal backend hostname while browsers keep using the public API URL.
 
 ### 5. Verify the platform
 
@@ -228,15 +230,27 @@ cd backend
 
 Reports are saved under `backend/eval_reports/`.
 
+### 8. Run with Docker
+
+```bash
+docker compose up --build
+```
+
+For a production-oriented override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
 Backend-specific environment and runtime details live in [backend/README.md](backend/README.md).
 
 ## Roadmap and Current Status
 
 - Completed through Phase 5 Step 3: retrieval and memory quality optimization.
-- Completed through Phase 6 Step 4: evaluation and benchmark suite.
-- Next maturity direction: reviewer dashboard UX, deeper HITL tooling, broader production controls, and continued hardening of orchestration and observability.
+- Completed through Phase 7: production deployment polish and readiness.
+- Next maturity direction: broader HITL tooling, release automation, and continued hardening of orchestration and observability.
 
-For the latest implementation snapshot, see [docs/dev-status.md](docs/dev-status.md).
+For the latest implementation snapshot, see [docs/dev-status.md](docs/dev-status.md). Deployment-specific setup and cloud guidance are in [docs/deployment.md](docs/deployment.md).
 
 ## Backend Documentation
 

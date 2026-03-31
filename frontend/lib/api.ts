@@ -1,9 +1,32 @@
 import { AUTH_TOKEN_STORAGE_KEY } from "@/lib/auth-storage";
 
+function resolveApiUrl() {
+  const internalUrl =
+    typeof window === "undefined" ? process.env.INTERNAL_API_BASE_URL ?? "" : "";
+  const configuredUrl =
+    internalUrl ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "";
+  const normalizedUrl = configuredUrl.replace(/\/+$/, "");
+
+  if (normalizedUrl) {
+    return normalizedUrl;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:8000";
+  }
+
+  throw new Error(
+    "NEXT_PUBLIC_API_BASE_URL must be configured in production so the frontend can reach the Nexus AI backend.",
+  );
+}
+
 const API_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8000"
+  (process.env.NODE_ENV !== "production" ? "http://localhost:8000" : "")
 ).replace(/\/+$/, "");
 
 export class ApiError extends Error {
@@ -30,11 +53,12 @@ function getBrowserAuthToken() {
 }
 
 async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const apiUrl = resolveApiUrl();
   const authToken = options.skipAuth ? null : (options.authToken ?? getBrowserAuthToken());
   let response: Response;
 
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${apiUrl}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -43,7 +67,7 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
       },
     });
   } catch {
-    throw new Error(`Unable to reach the Nexus AI backend at ${API_URL}.`);
+    throw new Error(`Unable to reach the Nexus AI backend at ${apiUrl}.`);
   }
 
   if (!response.ok) {
@@ -86,4 +110,4 @@ export async function sendChat(payload: {
   });
 }
 
-export { API_URL, apiRequest };
+export { API_URL, apiRequest, resolveApiUrl };

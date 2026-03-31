@@ -1,0 +1,15 @@
+services:
+  postgres:
+    restart: always
+
+  qdrant:
+    restart: always
+
+  backend:
+    restart: always
+    environment:
+      APP_ENV: production
+      DEBUG: false
+
+  frontend:
+    restart: always

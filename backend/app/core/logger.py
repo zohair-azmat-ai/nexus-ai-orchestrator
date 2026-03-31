@@ -26,6 +26,17 @@ class ContextFilter(logging.Filter):
         return True
 
 
+def sanitize_log_value(value: str | None) -> str | None:
+    if not value:
+        return value
+
+    sanitized = value
+    for secret in (settings.openai_api_key, settings.auth_secret_key, settings.qdrant_api_key):
+        if secret:
+            sanitized = sanitized.replace(secret, "***redacted***")
+    return sanitized
+
+
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
 

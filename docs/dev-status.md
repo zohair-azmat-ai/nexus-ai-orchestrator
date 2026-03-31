@@ -13,9 +13,11 @@
 - Phase 6 Step 2: HITL dashboard and reviewer workflow UI
 - Phase 6 Step 3: Authentication, roles, and protected reviewer APIs
 - Phase 6 Step 4: Evaluation and benchmark suite
+- Phase 7: Production deployment polish and readiness
 
 ## In Progress
 - Broader HITL automation and audit tooling
+- Release process hardening
 
 ## Pending
 - More escalation workflow coverage

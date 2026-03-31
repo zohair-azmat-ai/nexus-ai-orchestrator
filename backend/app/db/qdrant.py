@@ -3,7 +3,7 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
-from app.core.logger import get_logger
+from app.core.logger import get_logger, sanitize_log_value
 
 logger = get_logger(__name__)
 
@@ -54,5 +54,8 @@ async def check_qdrant_connection() -> bool:
         await client.get_collections()
         return True
     except (UnexpectedResponse, Exception) as exc:
-        logger.warning("Qdrant health check failed", extra={"error": str(exc)})
+        logger.warning(
+            "qdrant.health_check_failed",
+            extra={"error_type": exc.__class__.__name__, "detail": sanitize_log_value(str(exc))},
+        )
         return False

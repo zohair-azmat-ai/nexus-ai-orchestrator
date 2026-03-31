@@ -4,15 +4,21 @@ import time
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, health, chat, ingest, memory, observability, jobs, escalations
+from app.api.v1 import auth, chat, escalations, health, ingest, jobs, memory, observability
 from app.core.config import settings
 from app.core.ids import generate_id, set_correlation_id, set_trace_id
-from app.core.logger import get_logger, set_log_context, clear_log_context
+from app.core.logger import clear_log_context, get_logger, set_log_context
 from app.db.postgres import create_all_tables, get_db
 from app.services.analytics.aggregator import record_request
 from app.services.auth import auth_manager
 from app.services.events import logger as event_logger
-from app.services.events.types import EVENT_API_REQUEST_COMPLETED, EVENT_API_REQUEST_FAILED, EVENT_API_REQUEST_STARTED, EVENT_STARTUP, EVENT_SHUTDOWN
+from app.services.events.types import (
+    EVENT_API_REQUEST_COMPLETED,
+    EVENT_API_REQUEST_FAILED,
+    EVENT_API_REQUEST_STARTED,
+    EVENT_SHUTDOWN,
+    EVENT_STARTUP,
+)
 
 logger = get_logger(__name__)
 
@@ -21,6 +27,12 @@ CORRELATION_ID_HEADER = "X-Correlation-ID"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    config_errors = settings.validate_runtime_configuration()
+    if config_errors:
+        logger.error("nexus.config.invalid", extra={"errors": config_errors})
+        message = "Invalid runtime configuration:\n- " + "\n- ".join(config_errors)
+        raise RuntimeError(message)
+
     logger.info(
         "nexus.startup",
         extra={"service": settings.app_name, "version": settings.app_version, "env": settings.app_env},
@@ -33,7 +45,10 @@ async def lifespan(app: FastAPI):
             await db.commit()
             break
     except Exception as exc:
-        logger.warning("db.create_tables_failed", extra={"error": str(exc)})
+        logger.warning(
+            "db.create_tables_failed",
+            extra={"error_type": exc.__class__.__name__},
+        )
     yield
     logger.info("nexus.shutdown", extra={"service": settings.app_name})
     event_logger.emit(EVENT_SHUTDOWN, service=settings.app_name)
@@ -48,26 +63,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ─── Correlation ID Middleware ────────────────────────────────────────────────
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next) -> Response:
-    """
-    Propagate or generate a correlation ID for every request.
-
-    - If the incoming request has X-Correlation-ID, use it.
-    - Otherwise generate a new UUID4.
-    - The ID is set in the request context and returned in the response header.
-    """
     correlation_id = request.headers.get(CORRELATION_ID_HEADER) or generate_id()
     set_correlation_id(correlation_id)
     set_trace_id(correlation_id)
@@ -113,7 +119,6 @@ async def correlation_id_middleware(request: Request, call_next) -> Response:
     return response
 
 
-# ─── Routes ──────────────────────────────────────────────────────────────────
 API_PREFIX = "/api/v1"
 
 app.include_router(health.router, prefix=API_PREFIX)
@@ -133,4 +138,5 @@ async def root() -> dict:
         "version": settings.app_version,
         "docs": "/docs",
         "health": "/api/v1/health",
+        "ready": "/api/v1/ready",
     }

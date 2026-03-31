@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
-from app.core.logger import get_logger
+from app.core.logger import get_logger, sanitize_log_value
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -80,5 +80,8 @@ async def check_postgres_connection() -> bool:
             await session.execute(text("SELECT 1"))
         return True
     except Exception as exc:
-        logger.warning("Postgres health check failed", extra={"error": str(exc)})
+        logger.warning(
+            "db.health_check_failed",
+            extra={"error_type": exc.__class__.__name__, "detail": sanitize_log_value(str(exc))},
+        )
         return False

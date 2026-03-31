@@ -55,6 +55,15 @@ These are the main backend settings used during development:
 
 See [`.env.example`](./.env.example) for the full backend configuration surface.
 
+Production startup validation checks:
+
+- `DATABASE_URL`
+- `QDRANT_URL`
+- `OPENAI_API_KEY`
+- `AUTH_SECRET_KEY`
+- `CORS_ALLOWED_ORIGINS`
+- `DEBUG=false` when `APP_ENV=production`
+
 ## Run the Backend
 
 ```bash
@@ -66,6 +75,11 @@ Interactive API docs:
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
+
+Operational endpoints:
+
+- `GET /api/v1/health` for liveness
+- `GET /api/v1/ready` for readiness
 
 ## Run Tests
 
@@ -92,6 +106,14 @@ Available suites:
 - `all`
 
 Saved reports are written to `backend/eval_reports/` by default.
+
+## Docker
+
+The backend image is defined in [backend/Dockerfile](./Dockerfile). The root compose files can run the backend together with PostgreSQL, Qdrant, and the frontend:
+
+```bash
+docker compose up --build
+```
 
 ## Key API Groups
 
