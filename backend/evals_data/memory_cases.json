@@ -1,0 +1,117 @@
+[
+  {
+    "case_id": "memory-fresh-summary",
+    "category": "summary",
+    "input": "Use a fresh summary with minimal drift",
+    "summary_text": "The user is working on a backend observability rollout and needs phased execution guidance.",
+    "summary_version": 2,
+    "source_message_count": 8,
+    "total_message_count": 9,
+    "recent_messages": [
+      {
+        "role": "user",
+        "content": "Thanks, please keep going with the observability rollout."
+      }
+    ],
+    "selection_limit": 4,
+    "expected_behavior": "fresh summary with only one new low-signal message should stay fresh",
+    "expected_memory_freshness": "fresh",
+    "expected_refresh_recommended": false,
+    "expected_selected_count": 1,
+    "expected_memory_usage": true,
+    "expect_compaction": false,
+    "notes": "This is the stable happy path for summary reuse."
+  },
+  {
+    "case_id": "memory-stale-high-signal",
+    "category": "stale",
+    "input": "High-signal recent messages should mark the summary stale",
+    "summary_text": "The conversation was previously about a generic product launch plan.",
+    "summary_version": 1,
+    "source_message_count": 4,
+    "total_message_count": 11,
+    "recent_messages": [
+      {
+        "role": "assistant",
+        "content": "I'm here to help."
+      },
+      {
+        "role": "user",
+        "content": "The deployment is blocked and the deadline moved up to tomorrow."
+      },
+      {
+        "role": "assistant",
+        "content": "Please share more details."
+      },
+      {
+        "role": "user",
+        "content": "Security also flagged a new issue and the roadmap needs to change."
+      },
+      {
+        "role": "user",
+        "content": "We need next steps for leadership today."
+      },
+      {
+        "role": "assistant",
+        "content": "Contact support if the issue persists."
+      }
+    ],
+    "selection_limit": 4,
+    "expected_behavior": "multiple high-signal recent messages should trigger stale classification and refresh",
+    "expected_memory_freshness": "stale",
+    "expected_refresh_recommended": true,
+    "expected_selected_count": 3,
+    "expected_memory_usage": true,
+    "expect_compaction": true,
+    "notes": "This verifies summary drift and assistant boilerplate filtering."
+  },
+  {
+    "case_id": "memory-recent-only",
+    "category": "recent",
+    "input": "No summary but useful recent messages should produce recent_only freshness",
+    "summary_text": null,
+    "summary_version": 0,
+    "source_message_count": 0,
+    "total_message_count": 3,
+    "recent_messages": [
+      {
+        "role": "user",
+        "content": "Can you remind me what we covered about the benchmark suite?"
+      },
+      {
+        "role": "assistant",
+        "content": "We covered retrieval, memory, agent, and regression benchmarking."
+      },
+      {
+        "role": "user",
+        "content": "Please keep that context for the next answer."
+      }
+    ],
+    "selection_limit": 4,
+    "expected_behavior": "recent conversation context should be retained without forcing summary refresh yet",
+    "expected_memory_freshness": "recent_only",
+    "expected_refresh_recommended": false,
+    "expected_selected_count": 3,
+    "expected_memory_usage": true,
+    "expect_compaction": false,
+    "notes": "This covers the request-history-only memory path."
+  },
+  {
+    "case_id": "memory-empty",
+    "category": "empty",
+    "input": "No summary and no recent messages should be empty",
+    "summary_text": null,
+    "summary_version": 0,
+    "source_message_count": 0,
+    "total_message_count": 0,
+    "recent_messages": [],
+    "selection_limit": 4,
+    "expected_behavior": "empty memory should stay empty with no refresh recommendation",
+    "expected_memory_freshness": "empty",
+    "expected_refresh_recommended": false,
+    "expected_selected_count": 0,
+    "expected_memory_usage": false,
+    "expect_compaction": false,
+    "notes": "This catches regressions where empty memory is mislabeled."
+  }
+]

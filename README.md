@@ -14,10 +14,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-active%20development-2563eb?style=for-the-badge" alt="Status badge" />
-  <img src="https://img.shields.io/badge/phase-6.3%20HITL-e11d48?style=for-the-badge" alt="Phase badge" />
+  <img src="https://img.shields.io/badge/phase-6.4%20HITL-e11d48?style=for-the-badge" alt="Phase badge" />
   <img src="https://img.shields.io/badge/backend-FastAPI-0f766e?style=for-the-badge&logo=fastapi&logoColor=white" alt="Backend badge" />
   <img src="https://img.shields.io/badge/frontend-Next.js-111827?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Frontend badge" />
-  <img src="https://img.shields.io/badge/tests-148%20passing-15803d?style=for-the-badge" alt="Tests badge" />
+  <img src="https://img.shields.io/badge/tests-159%20passing-15803d?style=for-the-badge" alt="Tests badge" />
 </p>
 
 <p align="center">
@@ -51,6 +51,7 @@ The project exists to answer a harder question than "how do we chat with an LLM?
 - Internal observability with traces, stage timings, metrics, and event enrichment.
 - Human-in-the-loop escalation workflow with persistent cases, notes, assignment, status changes, and audit events.
 - Reviewer/admin authentication with protected reviewer APIs and a frontend login flow.
+- Deterministic evaluation suites for retrieval quality, memory quality, agent selection, and regression stability.
 
 ## Architecture Summary
 
@@ -157,7 +158,7 @@ nexus-ai/
 
 The backend test suite is designed to run without live OpenAI, Qdrant, or PostgreSQL dependencies. The current repository state includes:
 
-- `148` backend tests passing.
+- `159` backend tests passing.
 - Coverage for orchestration, planning, retrieval quality, memory freshness, jobs, observability, tools, and escalation workflow.
 - In-memory and mocked test paths that keep development fast and deterministic.
 
@@ -218,12 +219,21 @@ curl http://localhost:8000/api/v1/health
 
 Open `http://localhost:3000/login` and sign in with one of the development accounts above.
 
+### 7. Run the evaluation suite
+
+```bash
+cd backend
+.venv\Scripts\python.exe -m app.evals.runner --suite all --save-report
+```
+
+Reports are saved under `backend/eval_reports/`.
+
 Backend-specific environment and runtime details live in [backend/README.md](backend/README.md).
 
 ## Roadmap and Current Status
 
 - Completed through Phase 5 Step 3: retrieval and memory quality optimization.
-- Completed through Phase 6 Step 3: auth, roles, and protected reviewer APIs.
+- Completed through Phase 6 Step 4: evaluation and benchmark suite.
 - Next maturity direction: reviewer dashboard UX, deeper HITL tooling, broader production controls, and continued hardening of orchestration and observability.
 
 For the latest implementation snapshot, see [docs/dev-status.md](docs/dev-status.md).

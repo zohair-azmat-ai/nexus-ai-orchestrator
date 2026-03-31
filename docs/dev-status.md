@@ -1,4 +1,4 @@
-# Nexus AI – Current Status
+# Nexus AI - Current Status
 
 ## Completed
 - Phase 1: foundation
@@ -12,6 +12,7 @@
 - Phase 6 Step 1: Human-in-the-Loop escalation workflow
 - Phase 6 Step 2: HITL dashboard and reviewer workflow UI
 - Phase 6 Step 3: Authentication, roles, and protected reviewer APIs
+- Phase 6 Step 4: Evaluation and benchmark suite
 
 ## In Progress
 - Broader HITL automation and audit tooling

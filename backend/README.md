@@ -76,6 +76,23 @@ pytest tests -q
 
 The test suite uses isolated in-memory test infrastructure and mocks external services where needed.
 
+## Run Evaluations
+
+```bash
+cd backend
+.venv\Scripts\python.exe -m app.evals.runner --suite all --save-report
+```
+
+Available suites:
+
+- `retrieval`
+- `memory`
+- `agent`
+- `regression`
+- `all`
+
+Saved reports are written to `backend/eval_reports/` by default.
+
 ## Key API Groups
 
 - `/api/v1/health`
