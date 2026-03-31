@@ -39,6 +39,14 @@ _ESCALATION_KW = {
     "escalate", "urgent", "critical", "human", "angry", "legal", "refund",
     "security", "frustrated", "sue", "lawyer", "complaint", "unacceptable",
     "fraud", "breach", "manager",
+    # frustration / dissatisfaction
+    "terrible", "horrible", "awful", "ridiculous", "fed up", "fed-up",
+    # cancellation intent
+    "cancel", "cancellation", "cancel my", "want to cancel",
+    # repeated-issue signals
+    "not resolved", "still not", "third time", "again and again", "keep having",
+    # urgency
+    "immediately", "right now", "asap",
 }
 _SUMMARIZER_KW = {
     "summarize", "summary", "tldr", "tl;dr", "brief", "shorten",

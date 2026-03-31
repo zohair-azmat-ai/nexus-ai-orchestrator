@@ -32,6 +32,7 @@ class ChatResponse(BaseModel):
     retrieval_result_count: int = 0
     retrieval_quality: str = "none"
     confidence: float = 0.0
+    escalation: bool = False
     escalation_case_id: str | None = None
     escalation_status: str | None = None
     memory_freshness: str = "empty"
