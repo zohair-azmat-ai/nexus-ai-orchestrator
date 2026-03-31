@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/nexus-ai-banner.png" style="width:100%; max-width:1100px; height:auto; border-radius:12px;" />
+  <img src="docs/assets/nexus-ai-banner.png" width="1000" />
 </div>
 
 <h1 align="center">Nexus AI</h1>
