@@ -9,11 +9,11 @@
 - Phase 5 Step 1: Multi-step planning and agent chaining
 - Phase 5 Step 2: Smart tool planning and context-aware execution planning
 - Phase 5 Step 3: Retrieval and memory quality optimization
+- Phase 6 Step 1: Human-in-the-Loop escalation workflow
+- Phase 6 Step 2: HITL dashboard and reviewer workflow UI
 
 ## In Progress
-- Phase 6 Step 1: Human-in-the-Loop escalation workflow
+- Broader HITL automation and audit tooling
 
 ## Pending
-- Escalation dashboard and reviewer UX
-- Broader HITL automation and audit tooling
 - More escalation workflow coverage

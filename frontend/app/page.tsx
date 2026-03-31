@@ -10,7 +10,7 @@ export default function Home() {
       <FeatureGrid />
 
       <footer className="border-t border-gray-800 py-8 text-center text-sm text-gray-500">
-        <p>Nexus AI &mdash; Multi-Agent RAG Orchestration Platform &mdash; Phase 1</p>
+        <p>Nexus AI &mdash; Multi-Agent RAG Orchestration Platform &mdash; Phase 6</p>
       </footer>
     </main>
   );

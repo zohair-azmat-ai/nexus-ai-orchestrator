@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export default function Navbar() {
@@ -10,12 +9,13 @@ export default function Navbar() {
             <span className="text-white font-bold text-sm">N</span>
           </div>
           <span className="text-white font-semibold text-lg tracking-tight">Nexus AI</span>
-          <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">Phase 1</span>
+          <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">Phase 6</span>
         </div>
 
         <div className="flex items-center gap-6 text-sm text-gray-400">
           <Link href="#features" className="hover:text-white transition-colors">Features</Link>
           <Link href="#architecture" className="hover:text-white transition-colors">Architecture</Link>
+          <Link href="/escalations" className="hover:text-white transition-colors">Escalations</Link>
           <a
             href="http://localhost:8000/docs"
             target="_blank"
