@@ -407,17 +407,21 @@ For environment setup, cloud guidance, and production configuration see [docs/de
 
 ### Frontend — Vercel
 
+A `vercel.json` at the repository root configures the build automatically. No manual Root Directory setting is required.
+
 1. Go to [vercel.com](https://vercel.com) and import the GitHub repository.
-2. Set the **Root Directory** to `frontend`.
-3. Add the following environment variable in Vercel project settings:
+2. Add the following environment variables in Vercel project settings:
 
    | Variable | Value |
    |:---|:---|
-   | `NEXT_PUBLIC_API_BASE_URL` | Your backend URL (e.g. HF Space or cloud host) |
+   | `NEXT_PUBLIC_API_BASE_URL` | `https://zohairazmat-nexus-ai-orchestrator.hf.space` |
+   | `INTERNAL_API_BASE_URL` | *(optional)* same URL, used for server-side requests |
 
-4. Deploy. Vercel auto-detects Next.js and runs `next build`.
+3. Deploy. The `vercel.json` handles the build from `frontend/` automatically.
 
-The frontend enforces `NEXT_PUBLIC_API_BASE_URL` at build time in production — deployment will fail fast if it is not set, preventing silent misconfiguration.
+To redeploy after changes: push to `main` — Vercel auto-redeploys on every push.
+
+> **Note:** `output: "standalone"` in `next.config.mjs` is only activated for Docker builds (`NEXT_OUTPUT=standalone` env var). Vercel uses the standard Next.js build output.
 
 ---
 
