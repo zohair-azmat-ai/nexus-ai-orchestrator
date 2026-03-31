@@ -40,6 +40,33 @@
   <img src="https://img.shields.io/badge/AI-OpenAI-7c3aed?style=flat-square&logo=openai&logoColor=white" alt="OpenAI badge" />
 </p>
 
+## System Metrics
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Tests%20Passing-160%2B-15803d?style=for-the-badge" alt="Tests passing badge" />
+  <img src="https://img.shields.io/badge/Eval%20Suite-18%2F18-2563eb?style=for-the-badge" alt="Eval suite badge" />
+  <img src="https://img.shields.io/badge/Phases%20Completed-7%2F7-e11d48?style=for-the-badge" alt="Phases completed badge" />
+  <img src="https://img.shields.io/badge/Agents-5-7c3aed?style=for-the-badge" alt="Agents badge" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Memory-Persistent-0f766e?style=for-the-badge" alt="Memory badge" />
+  <img src="https://img.shields.io/badge/Retrieval-Qdrant%20%2B%20Embeddings-f59e0b?style=for-the-badge" alt="Retrieval badge" />
+  <img src="https://img.shields.io/badge/Observability-Enabled-dc2626?style=for-the-badge" alt="Observability badge" />
+  <img src="https://img.shields.io/badge/HITL%20Workflow-Enabled-0891b2?style=for-the-badge" alt="HITL workflow badge" />
+</p>
+
+| Metric | Value |
+|---|---|
+| Test Coverage Signal | `160+` passing backend tests |
+| Evaluation Stability | `18/18` benchmark cases passing |
+| Delivery Progress | `7/7` phases completed |
+| Agent Runtime | `5` specialized agents |
+| Memory Layer | Persistent conversation memory and summaries |
+| Retrieval Stack | Qdrant-backed retrieval with embeddings |
+| Observability | Trace-aware execution and metrics enabled |
+| Human Review | HITL escalation workflow enabled |
+
 ## Overview
 
 Nexus AI is an advanced AI orchestration platform, not a simple chatbot wrapper.
