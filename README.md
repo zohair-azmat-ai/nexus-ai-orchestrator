@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/nexus-ai-banner.png" width="1000" />
+  <img src="docs/assets/nexus-ai-banner.png" width="1200" />
 </div>
 
 <h1 align="center">Nexus AI</h1>
@@ -404,6 +404,20 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
 For environment setup, cloud guidance, and production configuration see [docs/deployment.md](docs/deployment.md).
+
+### Frontend — Vercel
+
+1. Go to [vercel.com](https://vercel.com) and import the GitHub repository.
+2. Set the **Root Directory** to `frontend`.
+3. Add the following environment variable in Vercel project settings:
+
+   | Variable | Value |
+   |:---|:---|
+   | `NEXT_PUBLIC_API_BASE_URL` | Your backend URL (e.g. HF Space or cloud host) |
+
+4. Deploy. Vercel auto-detects Next.js and runs `next build`.
+
+The frontend enforces `NEXT_PUBLIC_API_BASE_URL` at build time in production — deployment will fail fast if it is not set, preventing silent misconfiguration.
 
 ---
 
