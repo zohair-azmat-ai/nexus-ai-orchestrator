@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { API_URL } from "@/lib/api";
 
 export default function Navbar() {
   return (
@@ -17,7 +18,7 @@ export default function Navbar() {
           <Link href="#architecture" className="hover:text-white transition-colors">Architecture</Link>
           <Link href="/escalations" className="hover:text-white transition-colors">Escalations</Link>
           <a
-            href="http://localhost:8000/docs"
+            href={`${API_URL}/docs`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-violet-400 hover:text-violet-300 transition-colors"

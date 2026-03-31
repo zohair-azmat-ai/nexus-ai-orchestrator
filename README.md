@@ -196,8 +196,11 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd ../frontend
 npm install
+copy .env.local.example .env.local
 npm run dev
 ```
+
+Set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` if your backend is not running on `http://localhost:8000`.
 
 ### 5. Verify the platform
 

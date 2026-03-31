@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import StatusBadge from "@/components/escalations/StatusBadge";
 import { assignEscalation, updateEscalationStatus } from "@/lib/escalations";
@@ -23,14 +24,21 @@ export default function ReviewerActions({
   escalationCase,
   onCaseUpdated,
 }: ReviewerActionsProps) {
+  const router = useRouter();
   const [assignedTo, setAssignedTo] = useState(escalationCase.assigned_to ?? "");
   const [assignActor, setAssignActor] = useState("");
   const [status, setStatus] = useState<EscalationStatus>(escalationCase.status);
   const [statusActor, setStatusActor] = useState("");
+  const [isRefreshing, startRefresh] = useTransition();
   const [assignError, setAssignError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  useEffect(() => {
+    setAssignedTo(escalationCase.assigned_to ?? "");
+    setStatus(escalationCase.status);
+  }, [escalationCase.assigned_to, escalationCase.status]);
 
   async function handleAssign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,6 +53,10 @@ export default function ReviewerActions({
       });
       onCaseUpdated(nextCase);
       setStatus(nextCase.status);
+      setAssignError(null);
+      startRefresh(() => {
+        router.refresh();
+      });
     } catch (error) {
       setAssignError(error instanceof Error ? error.message : "Unable to assign case.");
     } finally {
@@ -63,6 +75,10 @@ export default function ReviewerActions({
         actor: statusActor || undefined,
       });
       onCaseUpdated(nextCase);
+      setStatusError(null);
+      startRefresh(() => {
+        router.refresh();
+      });
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : "Unable to update status.");
     } finally {
@@ -106,6 +122,7 @@ export default function ReviewerActions({
           </div>
 
           {assignError ? <p className="text-sm text-rose-300">{assignError}</p> : null}
+          {isRefreshing ? <p className="text-sm text-slate-400">Refreshing case data...</p> : null}
 
           <button
             type="submit"
@@ -148,6 +165,7 @@ export default function ReviewerActions({
           </div>
 
           {statusError ? <p className="text-sm text-rose-300">{statusError}</p> : null}
+          {isRefreshing ? <p className="text-sm text-slate-400">Refreshing case data...</p> : null}
 
           <button
             type="submit"

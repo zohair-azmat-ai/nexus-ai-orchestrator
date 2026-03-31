@@ -1,13 +1,23 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8000"
+).replace(/\/+$/, "");
 
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error(`Unable to reach the Nexus AI backend at ${API_URL}.`);
+  }
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
@@ -22,6 +32,10 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
     }
 
     throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;

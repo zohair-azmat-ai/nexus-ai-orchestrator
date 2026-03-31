@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import BackendUnavailable from "@/components/escalations/BackendUnavailable";
 import DashboardShell from "@/components/escalations/DashboardShell";
 import EscalationQueue from "@/components/escalations/EscalationQueue";
 import { listEscalations } from "@/lib/escalations";
@@ -19,12 +20,20 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
   const assignedTo = searchParams?.assigned_to ?? "";
   const search = searchParams?.search ?? "";
 
-  const response = await listEscalations({
-    limit: 100,
-    status: status || undefined,
-    severity: severity || undefined,
-    assigned_to: assignedTo || undefined,
-  });
+  let response;
+  let integrationError: string | null = null;
+
+  try {
+    response = await listEscalations({
+      limit: 100,
+      status: status || undefined,
+      severity: severity || undefined,
+      assigned_to: assignedTo || undefined,
+    });
+  } catch (error) {
+    integrationError =
+      error instanceof Error ? error.message : "Unable to load escalation cases.";
+  }
 
   return (
     <DashboardShell
@@ -102,7 +111,12 @@ export default async function EscalationsPage({ searchParams }: EscalationsPageP
         </form>
       </section>
 
-      {response.cases.length > 0 ? (
+      {integrationError ? (
+        <BackendUnavailable
+          title="Escalation queue unavailable"
+          message={`${integrationError} Start the backend and confirm the API base URL before opening the review queue.`}
+        />
+      ) : response && response.cases.length > 0 ? (
         <EscalationQueue cases={response.cases} total={response.total} initialSearch={search} />
       ) : (
         <section className="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 p-12 text-center">

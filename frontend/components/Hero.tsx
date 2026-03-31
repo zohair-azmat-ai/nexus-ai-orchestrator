@@ -1,3 +1,5 @@
+import { API_URL } from "@/lib/api";
+
 export default function Hero() {
   return (
     <section className="max-w-6xl mx-auto px-6 py-28 text-center">
@@ -31,7 +33,7 @@ export default function Hero() {
 
       <div className="flex flex-wrap justify-center gap-4">
         <a
-          href="http://localhost:8000/docs"
+          href={`${API_URL}/docs`}
           target="_blank"
           rel="noopener noreferrer"
           className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-medium transition-colors"
@@ -39,7 +41,7 @@ export default function Hero() {
           API Explorer
         </a>
         <a
-          href="http://localhost:8000/api/v1/health"
+          href={`${API_URL}/api/v1/health`}
           target="_blank"
           rel="noopener noreferrer"
           className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg font-medium border border-gray-700 transition-colors"

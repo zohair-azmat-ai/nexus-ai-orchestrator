@@ -21,13 +21,16 @@ export default function TraceSnapshot({
     );
   }
 
-  const recentEvents = trace.events.slice(-6).reverse();
+  const recentEvents = trace.events
+    .filter((event) => Boolean(event.event_type || event.message || event.component))
+    .slice(-6)
+    .reverse();
   const executionSummary = [
     trace.agent_used ? `Agent: ${trace.agent_used}` : null,
     trace.tools_used.length ? `Tools: ${trace.tools_used.join(", ")}` : null,
   ]
     .filter(Boolean)
-    .join(" • ");
+    .join(" | ");
 
   return (
     <section className="rounded-2xl border border-white/10 bg-slate-950/70 p-5">
@@ -47,7 +50,10 @@ export default function TraceSnapshot({
           <div className="mt-4 space-y-3">
             {Object.keys(trace.stage_timings).length > 0 ? (
               Object.entries(trace.stage_timings).map(([stage, value]) => (
-                <div key={stage} className="flex items-center justify-between rounded-xl bg-slate-950/80 px-3 py-2.5">
+                <div
+                  key={stage}
+                  className="flex items-center justify-between rounded-xl bg-slate-950/80 px-3 py-2.5"
+                >
                   <span className="text-sm text-slate-300">{titleize(stage)}</span>
                   <span className="text-sm font-medium text-white">{value} ms</span>
                 </div>
@@ -63,14 +69,17 @@ export default function TraceSnapshot({
           <div className="mt-4 space-y-3">
             {recentEvents.length > 0 ? (
               recentEvents.map((event, index) => (
-                <article key={`${event.event_type ?? "event"}-${index}`} className="rounded-xl bg-slate-950/80 p-3">
+                <article
+                  key={`${event.event_type ?? "event"}-${index}`}
+                  className="rounded-xl bg-slate-950/80 p-3"
+                >
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span>{event.event_type ?? "event"}</span>
                     <span>{titleize(String(event.stage ?? "unknown"))}</span>
                     <span>{formatDateTime(event.timestamp ? String(event.timestamp) : undefined)}</span>
                   </div>
                   <p className="mt-2 text-sm text-slate-200">
-                    {String(event.component ?? "system")} • {String(event.status ?? "recorded")}
+                    {String(event.component ?? "system")} | {String(event.status ?? "recorded")}
                   </p>
                   {typeof event.message === "string" ? (
                     <p className="mt-1 text-sm text-slate-400">{event.message}</p>

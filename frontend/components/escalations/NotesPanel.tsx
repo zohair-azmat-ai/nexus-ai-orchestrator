@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { formatDateTime, titleize } from "@/components/escalations/utils";
 import { createEscalationNote } from "@/lib/escalations";
@@ -13,15 +14,26 @@ import type {
 interface NotesPanelProps {
   escalationCase: EscalationCase;
   initialNotes: EscalationNote[];
+  unavailableReason?: string;
 }
 
-export default function NotesPanel({ escalationCase, initialNotes }: NotesPanelProps) {
+export default function NotesPanel({
+  escalationCase,
+  initialNotes,
+  unavailableReason,
+}: NotesPanelProps) {
+  const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
   const [author, setAuthor] = useState("");
   const [content, setContent] = useState("");
   const [noteType, setNoteType] = useState<EscalationNoteType>("human");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNotes(initialNotes);
+  }, [initialNotes]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,7 +47,11 @@ export default function NotesPanel({ escalationCase, initialNotes }: NotesPanelP
         note_type: noteType,
       });
       setNotes((current) => [...current, note]);
+      setError(null);
       setContent("");
+      startRefresh(() => {
+        router.refresh();
+      });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to save note.");
     } finally {
@@ -54,7 +70,11 @@ export default function NotesPanel({ escalationCase, initialNotes }: NotesPanelP
       </div>
 
       <div className="mt-5 space-y-3">
-        {notes.length > 0 ? (
+        {unavailableReason ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
+            {unavailableReason}
+          </div>
+        ) : notes.length > 0 ? (
           notes.map((note) => (
             <article
               key={note.note_id}
@@ -119,10 +139,11 @@ export default function NotesPanel({ escalationCase, initialNotes }: NotesPanelP
         </label>
 
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+        {isRefreshing ? <p className="text-sm text-slate-400">Refreshing notes...</p> : null}
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || Boolean(unavailableReason)}
           className="inline-flex items-center rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-cyan-500/60"
         >
           {isSubmitting ? "Saving note..." : "Add note"}

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import BackendUnavailable from "@/components/escalations/BackendUnavailable";
 import CaseDetailClient from "@/components/escalations/CaseDetailClient";
 import DashboardShell from "@/components/escalations/DashboardShell";
 import { getEscalation, listEscalationNotes } from "@/lib/escalations";
@@ -20,10 +21,31 @@ export default async function EscalationCasePage({ params }: EscalationCasePageP
     if (error instanceof Error && error.message.toLowerCase().includes("not found")) {
       notFound();
     }
-    throw error;
+
+    return (
+      <DashboardShell
+        eyebrow="Human In The Loop"
+        title="Escalation Case"
+        description="Inspect the escalation context, capture reviewer notes, update ownership, and review the execution trace."
+      >
+        <BackendUnavailable
+          title="Escalation case unavailable"
+          message={
+            error instanceof Error
+              ? `${error.message} Start the backend and verify the case API is reachable.`
+              : "Unable to load the escalation case."
+          }
+        />
+      </DashboardShell>
+    );
   }
 
-  const notesPromise = listEscalationNotes(params.caseId);
+  const notesPromise = listEscalationNotes(params.caseId)
+    .then((value) => ({ notes: value.notes, unavailableReason: undefined }))
+    .catch((error: Error) => ({
+      notes: [],
+      unavailableReason: error.message || "Notes unavailable.",
+    }));
   const tracePromise = escalationCase.trace_id
     ? getTraceSummary(escalationCase.trace_id)
         .then((value) => ({ trace: value, unavailableReason: undefined }))
@@ -47,6 +69,7 @@ export default async function EscalationCasePage({ params }: EscalationCasePageP
       <CaseDetailClient
         initialCase={escalationCase}
         initialNotes={notesResponse.notes}
+        notesUnavailableReason={notesResponse.unavailableReason}
         trace={traceResult.trace}
         traceUnavailableReason={traceResult.unavailableReason}
       />

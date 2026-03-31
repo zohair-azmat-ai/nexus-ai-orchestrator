@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import NotesPanel from "@/components/escalations/NotesPanel";
 import ReviewerActions from "@/components/escalations/ReviewerActions";
@@ -14,6 +14,7 @@ import type { TraceSummary } from "@/types/observability";
 interface CaseDetailClientProps {
   initialCase: EscalationCase;
   initialNotes: EscalationNote[];
+  notesUnavailableReason?: string;
   trace: TraceSummary | null;
   traceUnavailableReason?: string;
 }
@@ -21,10 +22,15 @@ interface CaseDetailClientProps {
 export default function CaseDetailClient({
   initialCase,
   initialNotes,
+  notesUnavailableReason,
   trace,
   traceUnavailableReason,
 }: CaseDetailClientProps) {
   const [escalationCase, setEscalationCase] = useState(initialCase);
+
+  useEffect(() => {
+    setEscalationCase(initialCase);
+  }, [initialCase]);
 
   return (
     <div className="space-y-6">
@@ -75,7 +81,11 @@ export default function CaseDetailClient({
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-6">
-          <NotesPanel escalationCase={escalationCase} initialNotes={initialNotes} />
+          <NotesPanel
+            escalationCase={escalationCase}
+            initialNotes={initialNotes}
+            unavailableReason={notesUnavailableReason}
+          />
         </div>
 
         <div className="space-y-6">
