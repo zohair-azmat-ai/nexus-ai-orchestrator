@@ -16,6 +16,7 @@ def _user_to_response(user) -> AuthUserResponse:
         email=user.email,
         full_name=user.full_name,
         role=user.role,
+        plan=user.plan,
         is_active=user.is_active,
         created_at=user.created_at.isoformat(),
         updated_at=user.updated_at.isoformat(),

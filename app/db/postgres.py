@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -68,7 +69,26 @@ async def create_all_tables() -> None:
 
     async with _get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _ensure_runtime_schema(conn)
     logger.info("db.tables_created")
+
+
+async def _ensure_runtime_schema(conn) -> None:
+    def _has_column(sync_conn, table_name: str, column_name: str) -> bool:
+        inspector = inspect(sync_conn)
+        columns = inspector.get_columns(table_name)
+        return any(column["name"] == column_name for column in columns)
+
+    has_plan = await conn.run_sync(_has_column, "users", "plan")
+    if has_plan:
+        return
+
+    dialect = conn.engine.dialect.name
+    if dialect == "postgresql":
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(32) NOT NULL DEFAULT 'free'"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_plan ON users (plan)"))
+    elif dialect == "sqlite":
+        await conn.execute(text("ALTER TABLE users ADD COLUMN plan VARCHAR(32) NOT NULL DEFAULT 'free'"))
 
 
 async def check_postgres_connection() -> bool:

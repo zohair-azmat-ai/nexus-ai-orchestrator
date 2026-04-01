@@ -6,6 +6,7 @@ class AuthUserResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    plan: str
     is_active: bool
     created_at: str
     updated_at: str

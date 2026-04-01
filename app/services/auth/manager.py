@@ -33,6 +33,7 @@ class AuthManager:
             full_name="Nexus Admin",
             password_hash=hash_password(settings.auth_dev_admin_password),
             role="admin",
+            plan="team",
             is_active=True,
         )
         await crud.create_or_update_user(
@@ -41,6 +42,7 @@ class AuthManager:
             full_name="Nexus Reviewer",
             password_hash=hash_password(settings.auth_dev_reviewer_password),
             role="reviewer",
+            plan="team",
             is_active=True,
         )
 

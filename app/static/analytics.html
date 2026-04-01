@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexus AI | Analytics</title>
+  <link rel="stylesheet" href="/static/nexus-premium.css">
+</head>
+<body class="nexus-body">
+  <main class="nexus-shell">
+    <section class="nexus-card nexus-card-wide">
+      <div class="nexus-eyebrow">Operations Snapshot</div>
+      <h1>Nexus AI analytics dashboard</h1>
+      <p class="nexus-copy">A live summary of intake volume, escalations, and responsiveness across the current support workflow.</p>
+
+      <div class="nexus-grid" id="analytics-grid">
+        <article class="nexus-stat-card">
+          <span>Total Tickets</span>
+          <strong data-stat="total_tickets">0</strong>
+        </article>
+        <article class="nexus-stat-card">
+          <span>Total Escalations</span>
+          <strong data-stat="total_escalations">0</strong>
+        </article>
+        <article class="nexus-stat-card">
+          <span>Escalation Rate</span>
+          <strong data-stat="escalation_rate">0%</strong>
+        </article>
+        <article class="nexus-stat-card">
+          <span>Avg Response Time</span>
+          <strong data-stat="avg_response_time_seconds">0s</strong>
+        </article>
+      </div>
+
+      <div id="analytics-summary" class="nexus-summary">Loading the latest production metrics...</div>
+      <div id="analytics-error" class="nexus-feedback is-hidden"></div>
+    </section>
+  </main>
+  <script src="/static/analytics.js" defer></script>
+</body>
+</html>

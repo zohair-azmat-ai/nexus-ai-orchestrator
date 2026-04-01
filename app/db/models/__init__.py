@@ -6,4 +6,6 @@ from app.db.models.event import EventLog  # noqa: F401
 from app.db.models.summary import ConversationSummary  # noqa: F401
 from app.db.models.background_job import BackgroundJob  # noqa: F401
 from app.db.models.escalation import EscalationCase, EscalationNote  # noqa: F401
+from app.db.models.notification import NotificationLog  # noqa: F401
+from app.db.models.ticket_usage import TicketUsage  # noqa: F401
 from app.db.models.user import User  # noqa: F401

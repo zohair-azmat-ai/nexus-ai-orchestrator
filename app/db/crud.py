@@ -6,6 +6,7 @@ managed by the caller (route handler or service), never here.
 """
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -16,6 +17,8 @@ from app.db.models.event import EventLog
 from app.db.models.summary import ConversationSummary
 from app.db.models.background_job import BackgroundJob
 from app.db.models.escalation import EscalationCase, EscalationNote
+from app.db.models.notification import NotificationLog
+from app.db.models.ticket_usage import TicketUsage
 from app.db.models.user import User
 from app.core.logger import get_logger
 
@@ -29,6 +32,7 @@ async def create_user(
     full_name: str,
     password_hash: str,
     role: str,
+    plan: str = "free",
     is_active: bool = True,
 ) -> User:
     user = User(
@@ -37,6 +41,7 @@ async def create_user(
         full_name=full_name,
         password_hash=password_hash,
         role=role,
+        plan=plan,
         is_active=is_active,
     )
     db.add(user)
@@ -62,6 +67,7 @@ async def create_or_update_user(
     full_name: str,
     password_hash: str,
     role: str,
+    plan: str = "free",
     is_active: bool = True,
 ) -> User:
     user = await get_user_by_email(db, email)
@@ -72,14 +78,16 @@ async def create_or_update_user(
             full_name=full_name,
             password_hash=password_hash,
             role=role,
+            plan=plan,
             is_active=is_active,
         )
 
     user.full_name = full_name
     user.password_hash = password_hash
     user.role = role
+    user.plan = plan
     user.is_active = is_active
-    user.updated_at = __import__("datetime").datetime.utcnow()
+    user.updated_at = datetime.utcnow()
     await db.flush()
     logger.debug("crud.user.updated", extra={"user_id": user.id, "email": user.email, "role": user.role})
     return user
@@ -191,7 +199,7 @@ async def upsert_conversation_summary(
         existing.summary_text = summary_text
         existing.source_message_count = source_message_count
         existing.summary_version = existing.summary_version + 1
-        existing.updated_at = __import__("datetime").datetime.utcnow()
+        existing.updated_at = datetime.utcnow()
         await db.flush()
         logger.debug("crud.summary.updated", extra={"conversation_id": conversation_id})
         return existing
@@ -258,7 +266,7 @@ async def update_job_status(
     if job is None:
         return None
     job.status = status
-    job.updated_at = __import__("datetime").datetime.utcnow()
+    job.updated_at = datetime.utcnow()
     if result is not None:
         job.result_json = result
     if error is not None:
@@ -359,7 +367,7 @@ async def update_escalation_status(
     if case is None:
         return None
     case.status = status
-    case.updated_at = __import__("datetime").datetime.utcnow()
+    case.updated_at = datetime.utcnow()
     await db.flush()
     logger.debug("crud.escalation_case.status_updated", extra={"case_id": case_id, "status": status})
     return case
@@ -378,7 +386,7 @@ async def assign_escalation_case(
     case.assigned_to = assigned_to
     if status:
         case.status = status
-    case.updated_at = __import__("datetime").datetime.utcnow()
+    case.updated_at = datetime.utcnow()
     await db.flush()
     logger.debug("crud.escalation_case.assigned", extra={"case_id": case_id, "assigned_to": assigned_to})
     return case
@@ -412,6 +420,117 @@ async def list_escalation_notes(db: AsyncSession, case_id: str) -> list[Escalati
         .order_by(EscalationNote.created_at.asc())
     )
     return list(result.scalars().all())
+
+
+async def get_ticket_usage(
+    db: AsyncSession,
+    *,
+    user_key: str,
+    period_key: str,
+) -> TicketUsage | None:
+    result = await db.execute(
+        select(TicketUsage).where(
+            TicketUsage.user_key == user_key,
+            TicketUsage.period_key == period_key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def increment_ticket_usage(
+    db: AsyncSession,
+    *,
+    user_key: str,
+    period_key: str,
+    plan: str,
+) -> TicketUsage:
+    usage = await get_ticket_usage(db, user_key=user_key, period_key=period_key)
+    if usage is None:
+        usage = TicketUsage(
+            id=str(uuid.uuid4()),
+            user_key=user_key,
+            period_key=period_key,
+            plan=plan,
+            ticket_count=0,
+        )
+        db.add(usage)
+        await db.flush()
+
+    usage.plan = plan
+    usage.ticket_count += 1
+    usage.updated_at = datetime.utcnow()
+    await db.flush()
+    logger.debug(
+        "crud.ticket_usage.incremented",
+        extra={"user_key": user_key, "period_key": period_key, "count": usage.ticket_count},
+    )
+    return usage
+
+
+async def create_notification_log(
+    db: AsyncSession,
+    *,
+    user_id: str,
+    case_id: str,
+    channel: str,
+    provider: str,
+    status: str,
+    metadata_json: dict[str, Any],
+) -> NotificationLog:
+    notification = NotificationLog(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        case_id=case_id,
+        channel=channel,
+        provider=provider,
+        status=status,
+        metadata_json=metadata_json,
+    )
+    db.add(notification)
+    await db.flush()
+    logger.debug(
+        "crud.notification.created",
+        extra={"notification_id": notification.id, "case_id": case_id, "channel": channel},
+    )
+    return notification
+
+
+async def get_analytics_summary(db: AsyncSession) -> dict[str, float | int]:
+    total_tickets_result = await db.execute(
+        select(func.count()).select_from(Message).where(Message.role == "user")
+    )
+    total_escalations_result = await db.execute(
+        select(func.count()).select_from(EscalationCase)
+    )
+    total_tickets = int(total_tickets_result.scalar_one() or 0)
+    total_escalations = int(total_escalations_result.scalar_one() or 0)
+
+    messages_result = await db.execute(
+        select(Message).order_by(Message.conversation_id.asc(), Message.created_at.asc())
+    )
+    messages = list(messages_result.scalars().all())
+    pending_user_message_by_conversation: dict[str, Message] = {}
+    response_times: list[float] = []
+    for message in messages:
+        if message.role == "user":
+            pending_user_message_by_conversation[message.conversation_id] = message
+            continue
+        if message.role != "assistant":
+            continue
+        user_message = pending_user_message_by_conversation.pop(message.conversation_id, None)
+        if user_message is None:
+            continue
+        response_times.append((message.created_at - user_message.created_at).total_seconds())
+
+    avg_response_time_seconds = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
+    escalation_rate = round((total_escalations / total_tickets) * 100, 2) if total_tickets else 0.0
+
+    return {
+        "total_tickets": total_tickets,
+        "total_escalations": total_escalations,
+        "escalation_rate": escalation_rate,
+        "avg_response_time_seconds": avg_response_time_seconds,
+    }
 
 
 async def create_event(

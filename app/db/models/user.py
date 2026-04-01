@@ -23,6 +23,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="user", index=True)
+    plan: Mapped[str] = mapped_column(String(32), nullable=False, default="free", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, nullable=False)

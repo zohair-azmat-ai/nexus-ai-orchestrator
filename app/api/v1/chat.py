@@ -14,6 +14,7 @@ from app.services.memory.summarizer import conversation_summarizer
 from app.services.orchestrator.engine import run_pipeline
 from app.services.jobs.manager import job_manager
 from app.services.jobs.types import JOB_TYPE_MEMORY_SUMMARY
+from app.services.saas import plan_service
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -58,6 +59,8 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         user_id=request.user_id,
         session_id=request.session_id,
     )
+
+    plan_decision = await plan_service.ensure_ticket_allowed(db, request.user_id)
 
     # ── Resolve conversation ──────────────────────────────────────────────────
     conversation = await crud.get_or_create_conversation(db, request.user_id, request.conversation_id)
@@ -127,6 +130,8 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)) -> Chat
         },
     )
 
+    await db.commit()
+    await plan_service.record_ticket(db, user_id=request.user_id, plan=plan_decision.plan)
     await db.commit()
 
     messages_count = await crud.count_messages(db, conversation.id)

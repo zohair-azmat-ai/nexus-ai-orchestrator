@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 import time
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.api.v1 import auth, chat, escalations, health, ingest, jobs, memory, observability
+from app.api import public
+from app.api.v1 import analytics, auth, chat, escalations, health, ingest, jobs, memory, observability
 from app.core.config import settings
 from app.core.ids import generate_id, set_correlation_id, set_trace_id
 from app.core.logger import clear_log_context, get_logger, set_log_context
@@ -23,6 +26,7 @@ from app.services.events.types import (
 logger = get_logger(__name__)
 
 CORRELATION_ID_HEADER = "X-Correlation-ID"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -123,12 +127,15 @@ API_PREFIX = "/api/v1"
 
 app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(chat.router, prefix=API_PREFIX)
+app.include_router(analytics.router, prefix=API_PREFIX)
 app.include_router(ingest.router, prefix=API_PREFIX)
 app.include_router(memory.router, prefix=API_PREFIX)
 app.include_router(observability.router, prefix=API_PREFIX)
 app.include_router(jobs.router, prefix=API_PREFIX)
 app.include_router(escalations.router, prefix=API_PREFIX)
 app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(public.router)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", tags=["Root"])

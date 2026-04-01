@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexus AI | Report an Issue</title>
+  <link rel="stylesheet" href="/static/nexus-premium.css">
+</head>
+<body class="nexus-body">
+  <main class="nexus-shell">
+    <section class="nexus-card nexus-card-wide">
+      <div class="nexus-eyebrow">Public Customer Report</div>
+      <h1>Report an issue to Nexus AI</h1>
+      <p class="nexus-copy">Submit a support issue directly into the live escalation workflow. High-priority reports are flagged for immediate human review.</p>
+
+      <form id="report-form" class="nexus-form">
+        <label class="nexus-field">
+          <span>Message</span>
+          <textarea id="message" name="message" rows="6" maxlength="4000" placeholder="Describe the issue, impact, and any relevant context." required></textarea>
+        </label>
+
+        <label class="nexus-field">
+          <span>Priority</span>
+          <select id="priority" name="priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+
+        <label class="nexus-field">
+          <span>Email or Customer Reference</span>
+          <input id="reporter" name="reporter" type="text" maxlength="255" placeholder="name@company.com or customer-1234">
+        </label>
+
+        <div class="nexus-actions">
+          <button id="submit-button" type="submit" class="nexus-button">Submit Issue</button>
+          <div id="loading" class="nexus-inline-status is-hidden">Submitting to the Nexus review queue...</div>
+        </div>
+      </form>
+
+      <section id="feedback" class="nexus-feedback is-hidden" aria-live="polite"></section>
+    </section>
+  </main>
+  <script src="/static/report.js" defer></script>
+</body>
+</html>

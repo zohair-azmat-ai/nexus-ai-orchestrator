@@ -15,6 +15,7 @@ from app.services.events.types import (
     EVENT_ESCALATION_CASE_STATUS_CHANGED,
     EVENT_ESCALATION_NOTE_ADDED,
 )
+from app.services.notifications import notifier
 
 logger = get_logger(__name__)
 
@@ -113,6 +114,15 @@ class EscalationWorkflowManager:
             note_type=note_type,
             content=note_text,
         )
+        if case.severity == "high":
+            case = await self.assign_case(
+                db,
+                case_id=case.id,
+                assigned_to="reviewer_default",
+                actor="auto_assigner",
+                move_to_in_review=True,
+            )
+        await notifier.send_notification(db, user_id=user_id, case_id=case.id, channel="email")
 
         event_logger.emit(
             EVENT_ESCALATION_CASE_CREATED,

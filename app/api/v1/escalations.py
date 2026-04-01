@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,7 @@ from app.schemas.escalations import (
     EscalationNoteListResponse,
     EscalationNoteResponse,
     EscalationStatusUpdateRequest,
+    EscalationTestCreateRequest,
 )
 from app.services.escalations.manager import EscalationWorkflowError, escalation_workflow
 
@@ -65,6 +68,38 @@ async def list_escalations(
         assigned_to=assigned_to,
     )
     return EscalationCaseListResponse(cases=[_case_to_response(case) for case in cases], total=len(cases))
+
+
+@router.post(
+    "/escalations/test-create",
+    response_model=EscalationCaseResponse,
+    tags=["Escalations"],
+    summary="Create a test escalation case (reviewer/admin only)",
+)
+async def test_create_escalation(
+    request: EscalationTestCreateRequest,
+    current_user: User = Depends(require_reviewer_or_admin),
+    db: AsyncSession = Depends(get_db),
+) -> EscalationCaseResponse:
+    """Create a synthetic escalation case directly in the database.
+    Intended for reviewer/admin testing of the HITL workflow only."""
+    conversation_id = str(uuid.uuid4())
+    trace_id = str(uuid.uuid4())
+    summary = f"[{request.channel.upper()}] {request.message[:200]}"
+
+    case = await crud.create_escalation_case(
+        db,
+        conversation_id=conversation_id,
+        trace_id=trace_id,
+        user_id=request.customer_ref,
+        escalation_reason=request.message,
+        severity=request.severity,
+        latest_agent="escalation_agent",
+        latest_summary=summary,
+    )
+    await db.commit()
+    await db.refresh(case)
+    return _case_to_response(case)
 
 
 @router.get(
