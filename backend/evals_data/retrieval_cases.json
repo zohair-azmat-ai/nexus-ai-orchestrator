@@ -1,0 +1,120 @@
+[
+  {
+    "case_id": "retrieval-strong-docs",
+    "category": "docs",
+    "input": "Analyze the architecture docs and create an implementation roadmap",
+    "retrieval_results": [
+      {
+        "chunk_id": "arch-1",
+        "document_id": "architecture-doc",
+        "chunk_index": 0,
+        "text": "The architecture.md guide explains the modular orchestrator, memory stage, retrieval stage, and agent routing boundaries used across Nexus AI services.",
+        "score": 0.91,
+        "source": "architecture.md"
+      },
+      {
+        "chunk_id": "roadmap-1",
+        "document_id": "roadmap-doc",
+        "chunk_index": 0,
+        "text": "The roadmap.md document outlines phased implementation milestones, validation checkpoints, and rollout sequencing for platform capabilities.",
+        "score": 0.86,
+        "source": "roadmap.md"
+      },
+      {
+        "chunk_id": "arch-1-dup",
+        "document_id": "architecture-doc",
+        "chunk_index": 0,
+        "text": "The architecture.md guide explains the modular orchestrator, memory stage, retrieval stage, and agent routing boundaries used across Nexus AI services.",
+        "score": 0.84,
+        "source": "architecture.md"
+      }
+    ],
+    "expected_behavior": "retrieval should run, compact duplicates, and classify the context as strong",
+    "expected_retrieval_quality": "strong",
+    "expected_retrieval_used": true,
+    "expected_sources": ["architecture.md", "roadmap.md"],
+    "expect_compaction": true,
+    "notes": "Strong scores and duplicate results should still produce compact high-signal context."
+  },
+  {
+    "case_id": "retrieval-weak-single-source",
+    "category": "sparse",
+    "input": "Explain the refund policy from the docs",
+    "retrieval_results": [
+      {
+        "chunk_id": "refund-1",
+        "document_id": "billing-doc",
+        "chunk_index": 2,
+        "text": "The billing guide notes that refunds may be reviewed within thirty days when the customer submits the original transaction reference and support context.",
+        "score": 0.68,
+        "source": "billing.md"
+      }
+    ],
+    "expected_behavior": "retrieval should run and classify as weak because only one meaningful result is present",
+    "expected_retrieval_quality": "weak",
+    "expected_retrieval_used": true,
+    "expected_sources": ["billing.md"],
+    "expect_compaction": false,
+    "notes": "A single medium-confidence hit should remain usable but weak."
+  },
+  {
+    "case_id": "retrieval-none-noise",
+    "category": "noise",
+    "input": "Find documentation about deployment windows",
+    "retrieval_results": [
+      {
+        "chunk_id": "noise-1",
+        "document_id": "misc",
+        "chunk_index": 0,
+        "text": "tiny",
+        "score": 0.55,
+        "source": "misc.txt"
+      },
+      {
+        "chunk_id": "noise-2",
+        "document_id": "misc",
+        "chunk_index": 1,
+        "text": "12345",
+        "score": 0.51,
+        "source": "misc.txt"
+      }
+    ],
+    "expected_behavior": "retrieval should effectively collapse to none because the results are not meaningful",
+    "expected_retrieval_quality": "none",
+    "expected_retrieval_used": false,
+    "expected_sources": [],
+    "expect_compaction": true,
+    "notes": "Short, noisy payloads should be filtered out completely."
+  },
+  {
+    "case_id": "retrieval-skip-memory-followup",
+    "category": "skip",
+    "input": "What did I just ask?",
+    "history": [
+      {
+        "role": "user",
+        "content": "Please summarize the roadmap risks we discussed earlier."
+      },
+      {
+        "role": "assistant",
+        "content": "We discussed delivery risk, dependency risk, and customer communication risk."
+      }
+    ],
+    "retrieval_results": [
+      {
+        "chunk_id": "should-not-use",
+        "document_id": "roadmap-doc",
+        "chunk_index": 0,
+        "text": "This content should not be used because the retrieval stage should be skipped for a simple follow-up with sufficient memory context.",
+        "score": 0.93,
+        "source": "roadmap.md"
+      }
+    ],
+    "expected_behavior": "retrieval should be skipped because recent memory is sufficient for the follow-up",
+    "expected_retrieval_quality": "none",
+    "expected_retrieval_used": false,
+    "expected_sources": [],
+    "expect_compaction": false,
+    "notes": "This catches regressions where follow-ups unnecessarily hit retrieval."
+  }
+]
