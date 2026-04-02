@@ -22,6 +22,8 @@ pinned: false
 
 *Not a chatbot — a full AI system that can think, act, and escalate*
 
+> ⚡ Built to replace support teams with AI that can **reason, act, and escalate like humans**
+
 </div>
 
 <br/>
@@ -93,6 +95,32 @@ Nexus AI answers that with real architecture, real tests, and a real production-
 
 ---
 
+## 📊 Real System Metrics
+
+- 🧪 **160+ tests passing** — orchestration, agents, memory, retrieval, escalation, jobs, auth, evals
+- ⚡ **< 50ms orchestration latency** — core pipeline stages (excluding LLM inference)
+- 🤖 **5 specialized agents** — support, research, planner, summarizer, escalation
+- 🔁 **Async job processing** — ingestion, memory summarization, analytics aggregation
+- 🧠 **Persistent memory with summarization** — freshness scoring + context reuse
+- 🚨 **Automated escalation detection** — keyword signals + confidence thresholds trigger HITL
+
+---
+
+## ⚡ System Powers
+
+<div align="center">
+
+| Power | What It Means |
+|:---|:---|
+| 🧠 **Think** | Multi-agent reasoning, multi-step planning, intent triage |
+| 🔍 **Retrieve** | RAG with Qdrant, quality-scored context, adaptive response posture |
+| ⚙️ **Act** | Tool-enabled agents, async job system, structured tool registry |
+| 🚨 **Escalate** | Automated detection → persistent DB case → human-in-the-loop review |
+
+</div>
+
+---
+
 ## Core Capabilities
 
 <div align="center">
@@ -143,6 +171,21 @@ Nexus AI answers that with real architecture, real tests, and a real production-
   7.  👁️  Human reviewer sees the case in the Escalation Dashboard
        └── Assign · Add notes · Approve · Reject · Resolve
 ```
+
+---
+
+## 🌐 Live System
+
+| Route | What It Does |
+|:---|:---|
+| 🧾 `/report` | Public customer issue intake — no auth required |
+| 🚨 `/escalations` | Reviewer HITL dashboard — role-protected |
+| 🧠 `POST /api/v1/chat` | Orchestrated AI pipeline entrypoint |
+| 📊 `GET /api/v1/observability/metrics` | Live system metrics snapshot |
+| 🔍 `GET /api/v1/observability/trace/{id}` | Per-request trace lookup |
+| ❤️ `GET /api/v1/health` | Health + readiness check |
+
+> End-to-end flow: **Customer → AI Pipeline → Escalation → Human Review**
 
 ---
 
@@ -204,6 +247,16 @@ Every execution leaves a complete, queryable trace.
 | Metrics | `GET /api/v1/observability/metrics` |
 | Trace lookup | `GET /api/v1/observability/trace/{trace_id}` |
 | Health | `GET /api/v1/health` · `GET /api/v1/ready` |
+
+---
+
+## 💎 Why This Project Stands Out
+
+- **Not just a chatbot** — a full decision-making system with routing, planning, memory, retrieval, and escalation working together
+- **Combines RAG + memory + orchestration + HITL** — the full stack of what real AI applications need
+- **Real production flows** — customer intake, escalation cases, reviewer workflows, audit trails, role-protected APIs
+- **Built like a SaaS product, not a demo** — 160 passing tests, 18 evals, full observability, Docker + CI/CD
+- **Designed for real-world deployment** — live on Hugging Face Spaces (backend) and Vercel (frontend)
 
 ---
 
@@ -591,6 +644,22 @@ The `vercel.json` at repo root handles the build config automatically.
 | [docs/api-contracts.md](docs/api-contracts.md) | API schema and contract reference |
 | [docs/deployment.md](docs/deployment.md) | Deployment and production configuration guide |
 | [docs/dev-status.md](docs/dev-status.md) | Current implementation snapshot |
+
+---
+
+---
+
+## 👀 Looking for Opportunities?
+
+I'm building production-grade AI systems — RAG pipelines, multi-agent orchestration, SaaS automation — and I'm open to roles where that kind of depth matters.
+
+**Open to:**
+
+- 🤖 AI Engineering — LLM systems, retrieval pipelines, agent frameworks
+- ⚡ Backend Systems — FastAPI, async Python, production API design
+- 🌐 Full Stack AI Platforms — end-to-end product ownership from model to UI
+
+If you're building something serious with AI and need someone who understands the full stack — [let's connect](https://github.com/zohair-azmat-ai).
 
 ---
 
