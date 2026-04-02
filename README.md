@@ -1,13 +1,3 @@
----
-title: Nexus AI Orchestrator
-emoji: 🤖
-colorFrom: blue
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 <div align="center">
   <img src="docs/assets/nexus-ai-banner.png" width="1200" />
 </div>
@@ -40,7 +30,7 @@ pinned: false
 
 <!-- Deployment -->
 ![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
-![Hugging Face](https://img.shields.io/badge/Backend-Hugging%20Face%20Spaces-ff9d00?style=for-the-badge&logo=huggingface&logoColor=white)
+[![Backend](https://img.shields.io/badge/Backend-Hugging%20Face%20Spaces-ff9d00?style=for-the-badge&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/ZohairAzmat/nexus-ai-orchestrator)
 
 <!-- Quality -->
 ![Tests](https://img.shields.io/badge/Tests-160%20Passing-15803d?style=for-the-badge)
@@ -73,6 +63,8 @@ The platform answers a harder question than *"how do I chat with an LLM?"*:
 > 💡 How do you build an AI system that **routes intelligently**, stays **grounded in retrieved knowledge**, **remembers the right things**, **traces every decision**, and **safely escalates to humans** when confidence is low or risk is high?
 
 Nexus AI answers that with real architecture, real tests, and a real production-ready backend.
+
+> 🚀 **Live backend deployed on Hugging Face Spaces** — [`zohairazmat-nexus-ai-orchestrator.hf.space`](https://zohairazmat-nexus-ai-orchestrator.hf.space) · Frontend on [Vercel](https://vercel.com)
 
 ---
 
